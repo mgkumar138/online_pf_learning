@@ -9,7 +9,7 @@ import os
 from copy import deepcopy
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=10000)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=1)
 parser.add_argument('--tmax', type=int, required=False, help='tmax', default=100)
 parser.add_argument('--rmax', type=int, required=False, help='rmax', default=5)
 parser.add_argument('--plr', type=float, required=False, help='plr', default=0.01)
@@ -18,7 +18,7 @@ parser.add_argument('--llr', type=float, required=False, help='llr', default=0.0
 parser.add_argument('--alr', type=float, required=False, help='alr', default=0.0001) 
 parser.add_argument('--slr', type=float, required=False, help='slr', default=0.000)
 parser.add_argument('--gamma', type=float, required=False, help='gamma', default=0.9)
-parser.add_argument('--npc', type=int, required=False, help='npc', default=64)
+parser.add_argument('--npc', type=int, required=False, help='npc', default=16)
 parser.add_argument('--alpha', type=float, required=False, help='alpha', default=1.0)
 parser.add_argument('--sigma', type=float, required=False, help='sigma', default=0.05)
 parser.add_argument('--rsz', type=float, required=False, help='rsz', default=0.05)
@@ -27,7 +27,11 @@ parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default
 parser.add_argument('--balpha', type=float, required=False, help='balpha', default=0.0)
 parser.add_argument('--noise', type=float, required=False, help='noise', default=0.000)
 parser.add_argument('--nact', type=int, required=False, help='nact', default=2)
+parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[0.5])
 parser.add_argument('--paramsindex', type=int,nargs='+', required=False, help='paramsindex', default=[0,1,2])
+parser.add_argument('--datadir', type=str, required=False, help='datadir', default='./data/')
+parser.add_argument('--figdir', type=str, required=False, help='figdir', default='./fig/')
+parser.add_argument('--csvname', type=str, required=False, help='csvname', default='results')
 args, unknown = parser.parse_known_args()
 
 
@@ -40,7 +44,7 @@ envsize = 1
 maxspeed = 0.1
 goalsize = args.rsz
 startcoord = [-0.75]
-goalcoords = [0.5]
+goalcoords = args.goalcoords
 seed = args.seed
 initvelocity = 0.0
 max_reward = args.rmax
@@ -67,6 +71,7 @@ gamma = args.gamma
 balpha = args.balpha
 
 plot_figs= False
+savecsv = False
 savevar = False
 savefig = False
 savegif = False
@@ -159,6 +164,10 @@ if plot_figs:
     f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=0, exptname=exptname, rsz=goalsize)
     print(score, drift)
 
+if savecsv:
+    compute_dxr(logparams, trials=np.linspace(0,train_episodes,100, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
+    store_csv(args.csvname+'.csv', args, ['trials','dxr'], [])
+    
 if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')
 

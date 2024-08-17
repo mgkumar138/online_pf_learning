@@ -41,13 +41,13 @@ def reward_func(x, xr, rsz):
     rx = 1 * np.exp(-0.5*((x - xr)/rsz)**2)
     return rx 
 
-def store_csv(csv_file, args, names, vars):
+def store_csv(csv_file, args, names, variables):
     # Extract all arguments from args namespace
     arg_dict = vars(args)
     
     # Add score and drift to the dictionary
-    for name, var in zip(names, vars):
-        arg_dict[name] = var
+    for name, variable in zip(names, variables):
+        arg_dict[name] = variable
 
     # Create csv_columns from the keys of arg_dict
     csv_columns = list(arg_dict.keys())
