@@ -66,6 +66,7 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 gamma = args.gamma
 balpha = args.balpha
 
+plot_figs= False
 savevar = False
 savefig = False
 savegif = False
@@ -149,13 +150,14 @@ for goalcoord in goalcoords:
 
 
 #%%
-env.plot_trajectory()
+if plot_figs:
+    env.plot_trajectory()
 
-f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=0, exptname=exptname, rsz=goalsize)
-print(score, drift)
+    for g,goal in enumerate(goalcoords):
+        plot_pc(logparams, train_episodes*(g+1), goalcoord=[goal])
 
-for g,goal in enumerate(goalcoords):
-    plot_pc(logparams, train_episodes*(g+1), goalcoord=[goal])
+    f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=0, exptname=exptname, rsz=goalsize)
+    print(score, drift)
 
 if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')

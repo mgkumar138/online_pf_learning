@@ -9,17 +9,45 @@ import imageio
 from io import BytesIO
 from model import *
 
+
+def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
+    xs = np.linspace(-0.9,0.9,1001)
+    threshold = 1e-2
+    rx = reward_func(xs, rcent, rsz)
+
+    xr_indices = rx>=threshold
+    x_indices = rx<threshold
+
+    delta_dxr = []
+    for trial in trials:
+        pcacts = predict_batch_placecell(logparams[trial], xs)
+        dx = np.sum(pcacts,axis=1)/pcacts.shape[1]
+
+        dxr = dx[xr_indices]
+        dxp = dx[x_indices]
+        delta = np.mean(dxr)-np.mean(dxp)
+        delta_dxr.append(delta)
+    return trials, np.array(delta_dxr)
+
+def plot_change_density(logparams, trials, rcent=0.5, rsz=0.05, ax=None):
+    if ax is None:
+        f,ax = plt.subplots()
+    trials, dxr = compute_dxr(logparams, trials, rcent, rsz)
+    ax.plot(trials, dxr)
+    ax.set_xlabel('Trial')
+    ax.set_ylabel(r"$[d(x_r) - d(x')]/N$")
+
 def reward_func(x, xr, rsz):
     rx = 1 * np.exp(-0.5*((x - xr)/rsz)**2)
     return rx 
 
-def store_csv(csv_file, args, score, drift):
+def store_csv(csv_file, args, names, vars):
     # Extract all arguments from args namespace
     arg_dict = vars(args)
     
     # Add score and drift to the dictionary
-    arg_dict['score'] = score
-    arg_dict['drift'] = drift
+    for name, var in zip(names, vars):
+        arg_dict[name] = var
 
     # Create csv_columns from the keys of arg_dict
     csv_columns = list(arg_dict.keys())
@@ -33,7 +61,7 @@ def store_csv(csv_file, args, score, drift):
         writer.writerow(arg_dict)
 
 
-def evaluate_loss(latencys, threshold=35, stability_window=10000, w1=1,w2=1, w3=1):
+def evaluate_loss(latencys, threshold=35, stability_window=10000):
     loss_vector = np.array(moving_average(latencys,20))
     # Calculate convergence speed
     try:
@@ -174,7 +202,7 @@ def get_1D_freq_density_corr(allcoords, logparams, trial, gap=25, bins=15):
 
         param = logparams[trial-g-1]
         pcacts = predict_batch_placecell(param, visits)
-        density = np.sum(pcacts,axis=1)
+        density = np.sum(pcacts,axis=1)/pcacts.shape[1]
     
         fx.append(frequency)
         dx.append(density)
@@ -595,7 +623,7 @@ def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75]
 
     for trial in trials:
         pcacts = predict_batch_placecell(logparams[trial], xs)
-        dx = np.sum(pcacts,axis=1)
+        dx = np.sum(pcacts,axis=1)/pcacts.shape[1]
         ax.plot(xs, dx, label=f'T={trial}')
         maxval = max(maxval, np.max(dx) * 1.1)
 
@@ -684,7 +712,7 @@ def plot_place_cells(params,startcoord, goalcoord,goalsize, title='', envsize=1)
     plt.tight_layout()
 
     plt.subplot(212)
-    plt.plot(xs, np.sum(pcacts,axis=1), color='red')
+    plt.plot(xs, np.sum(pcacts,axis=1)/pcacts.shape[1], color='red')
     plt.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
     plt.axvline(startcoord[0], color='g',linestyle='--',label='Start', linewidth=2)
     # plt.fill_betweenx(np.linspace(0,np.max(np.sum(pcacts,axis=1))), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25)
