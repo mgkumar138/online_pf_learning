@@ -76,7 +76,7 @@ balpha = args.balpha
 
 plot_figs= True
 savecsv = False
-savevar = True
+savevar = False
 savefig = False
 savegif = False
 
@@ -167,7 +167,7 @@ if plot_figs:
         for g,goal in enumerate(goalcoords):
             plot_pc(logparams, train_episodes*(g+1), goalcoord=[goal])
 
-    f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=0, exptname=exptname, rsz=goalsize)
+    f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=train_episodes//2, exptname=exptname, rsz=goalsize)
     print(score, drift)
 
 if savecsv:
