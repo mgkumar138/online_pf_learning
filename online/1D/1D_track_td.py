@@ -164,15 +164,16 @@ for goalcoord in goalcoords:
 if plot_figs:
     env.plot_trajectory()
 
-    for g,goal in enumerate(goalcoords):
-        plot_pc(logparams, train_episodes*(g+1), goalcoord=[goal])
+    if len(goalcoords)> 1:
+        for g,goal in enumerate(goalcoords):
+            plot_pc(logparams, train_episodes*(g+1), goalcoord=[goal])
 
     f,score, drift = plot_analysis(logparams, latencys,cum_rewards, allcoords, stable_perf=0, exptname=exptname, rsz=goalsize)
     print(score, drift)
 
 if savecsv:
     trials, dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,100, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
-    store_csv(args.csvname+'.csv', args, ['trials','dxr'], [trials, dxr])
+    store_csv('./csvs/'+args.csvname+'.csv', args, ['trials','dxr'], [trials, dxr])
     
 if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')
