@@ -20,6 +20,7 @@ def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
     x_indices = rx<threshold
 
     delta_dxr = []
+    dxs = []
     for trial in trials:
         pcacts = predict_batch_placecell(logparams[trial], xs)
         dx = np.sum(pcacts,axis=1)/pcacts.shape[1]
@@ -28,7 +29,8 @@ def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
         dxp = dx[x_indices]
         delta = np.mean(dxr)-np.mean(dxp)
         delta_dxr.append(delta)
-    return trials, dx, np.array(delta_dxr)
+        dxs.append(dx)
+    return trials, np.array(dxs), np.array(delta_dxr)
 
 def plot_change_density(logparams, trials, rcent=0.5, rsz=0.05, ax=None):
     if ax is None:
