@@ -8,7 +8,7 @@ from copy import deepcopy
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=1)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=10000)
 parser.add_argument('--tmax', type=int, required=False, help='tmax', default=100)
 
 parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[0.5])
@@ -23,8 +23,8 @@ parser.add_argument('--sigma', type=float, required=False, help='sigma', default
 
 parser.add_argument('--plr', type=float, required=False, help='plr', default=0.01)
 parser.add_argument('--clr', type=float, required=False, help='clr', default=0.01)
-parser.add_argument('--llr', type=float, required=False, help='llr', default=0.000) 
-parser.add_argument('--alr', type=float, required=False, help='alr', default=0.000) 
+parser.add_argument('--llr', type=float, required=False, help='llr', default=0.0001) 
+parser.add_argument('--alr', type=float, required=False, help='alr', default=0.0001) 
 parser.add_argument('--slr', type=float, required=False, help='slr', default=0.000)
 parser.add_argument('--gamma', type=float, required=False, help='gamma', default=0.9)
 parser.add_argument('--nact', type=int, required=False, help='nact', default=2)
@@ -74,15 +74,16 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 gamma = args.gamma
 balpha = args.balpha
 
-plot_figs= False
-savecsv = True
-savevar = False
+plot_figs= True
+savecsv = False
+savevar = True
 savefig = False
 savegif = False
 
 exptname = f'1D_td_online_{balpha}ba_{noise}ns_{piname}p_{npc}n_{actor_eta}plr_{critic_eta}clr_{pc_eta}llr_{constant_eta}alr_{sigma_eta}slr_{pcinit}_{nact}a_{seed}s_{train_episodes}e_{max_reward}rmax_{goalsize}rsz'
 figdir = './fig/'
 datadir = './data/'
+
 print(exptname)
 
 if pcinit=='uni':
@@ -177,7 +178,7 @@ if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')
 
 if savevar:
-    saveload(datadir+exptname, [logparams, latencys, allcoords], 'save')
+    saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
 
 # %%
 if savegif:
