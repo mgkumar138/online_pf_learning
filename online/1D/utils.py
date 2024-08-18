@@ -51,7 +51,6 @@ def reward_func(x, xr, rsz, amp=1):
     rx =  amp  * np.exp(-0.5*((x - xr)/rsz)**2)  # (1/np.sqrt(2*np.pi*rsz**2))
     return rx 
 
-
 def store_csv(csv_file, args, names, variables):
     # Extract all arguments from args namespace
     arg_dict = vars(args)
@@ -66,6 +65,9 @@ def store_csv(csv_file, args, names, variables):
     # Add names and variables to the dictionary after converting variables to strings
     for name, variable in zip(names, variables):
         if isinstance(variable, (np.ndarray, list)):
+            # Convert list to numpy array if needed
+            if isinstance(variable, list):
+                variable = np.array(variable)
             variable_str = np.array2string(variable, separator=',').replace('\n', '')
             data_dict[name] = variable_str
         else:
@@ -81,7 +83,6 @@ def store_csv(csv_file, args, names, variables):
         if not file_exists:
             writer.writeheader()  # File doesn't exist yet, write a header
         writer.writerow(data_dict)
-
 
 
 def evaluate_loss(latencys, threshold=35, stability_window=10000):

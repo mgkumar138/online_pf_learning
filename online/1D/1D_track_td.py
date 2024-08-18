@@ -74,8 +74,8 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 gamma = args.gamma
 balpha = args.balpha
 
-plot_figs= True
-savecsv = False
+plot_figs= False
+savecsv = True
 savevar = False
 savefig = False
 savegif = False
@@ -173,7 +173,7 @@ if plot_figs:
 if savecsv:
     if args.analysis == 'dx':
         trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,100, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
-        store_csv('./csvs/dx_'+args.csvname+'.csv', args, ['trials','dx', 'delta_dxr'], [trials, dx, delta_dxr])
+        store_csv(args.csvname+'.csv', args, ['latencys','cumr','trials','dx', 'delta_dxr'], [latencys, cum_rewards, trials, dx, delta_dxr])
 
     elif args.analysis == 'drift':
         stable_perf = 20000
