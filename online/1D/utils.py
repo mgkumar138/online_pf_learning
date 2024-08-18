@@ -10,6 +10,13 @@ from io import BytesIO
 from model import *
 import ast
 
+def compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001):
+    trials, pv_corr,rep_corr, _, _ = get_pvcorr(logparams, stable_perf, train_episodes, num)
+    var_pv = np.std(pv_corr)
+    var_rc = np.std(rep_corr)
+    var_gr_ = np.std(np.array(cum_rewards)[trials])
+    var_lat_ = np.std(np.array(latencys)[trials])
+    return var_pv,var_rc, var_gr_, var_lat_
 
 def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
     xs = np.linspace(-0.9,0.9,1001)
@@ -367,7 +374,7 @@ def plot_analysis(logparams,latencys,cum_rewards, allcoords, stable_perf, exptna
     param_delta = get_param_changes(logparams, total_trials)
     plot_param_variance(param_delta, total_trials, stable_perf,axs=axs[5])
 
-    plot_l1norm(param_delta[2], ax=axs[5,2].twinx(), stable_perf=stable_perf)
+    plot_l1norm(param_delta[2], ax=axs[5,2], stable_perf=stable_perf)
 
     # plot_policy(logparams,ax=axs[6,0])
 
@@ -376,7 +383,7 @@ def plot_analysis(logparams,latencys,cum_rewards, allcoords, stable_perf, exptna
     # dlambda = np.mean(np.std(param_delta[0][stable_perf:],axis=0))
     # dalpha= np.mean(np.std(param_delta[2][stable_perf:],axis=0))
 
-    plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=0.1,ax=axs[6,2])
+    plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=1.0,ax=axs[6,2])
 
     # for trial in np.linspace(0,total_trials, num=3, dtype=int):
     #     axs[6,1].hist(logparams[trial][2],alpha=0.25, label=f'T={trial+1}')
@@ -386,6 +393,7 @@ def plot_analysis(logparams,latencys,cum_rewards, allcoords, stable_perf, exptna
     f.text(0.001,0.001, exptname, fontsize=5)
     f.tight_layout()
     return f, score, drift
+    
 
 def plot_policy(logparams,ax=None):
     if ax is None:
