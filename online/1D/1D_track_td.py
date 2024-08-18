@@ -1,11 +1,9 @@
 #%%
 
-import matplotlib.pyplot as plt
 from utils import *
 from envs import *
 from model import *
 import numpy as np
-import os
 from copy import deepcopy
 import argparse
 
@@ -76,8 +74,8 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 gamma = args.gamma
 balpha = args.balpha
 
-plot_figs= True
-savecsv = False
+plot_figs= False
+savecsv = True
 savevar = False
 savefig = False
 savegif = False
