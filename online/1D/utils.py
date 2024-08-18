@@ -37,8 +37,8 @@ def plot_change_density(logparams, trials, rcent=0.5, rsz=0.05, ax=None):
     ax.set_xlabel('Trial')
     ax.set_ylabel(r"$[d(x_r) - d(x')]/N$")
 
-def reward_func(x, xr, rsz):
-    rx = 1 * np.exp(-0.5*((x - xr)/rsz)**2)
+def reward_func(x, xr, rsz, amp=1):
+    rx =  amp  * np.exp(-0.5*((x - xr)/rsz)**2)  # (1/np.sqrt(2*np.pi*rsz**2))
     return rx 
 
 def store_csv(csv_file, args, names, variables):
@@ -476,10 +476,10 @@ def plot_amplitude_drift(logparams, total_trials, stable_perf, ax=None):
     # delta_alpha = np.std(param_delta[2],axis=0)
     deltas = np.sum(np.std(np.array(param_delta),axis=1),axis=0)
     ax.scatter(mean_amplitude, deltas)
-
-    slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(mean_amplitude).reshape(-1), np.array(deltas).reshape(-1))
-    regression_line = slope * np.array(mean_amplitude).reshape(-1) + intercept
-    ax.plot(np.array(mean_amplitude).reshape(-1), regression_line, color='red', label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}')
+    if np.std(mean_amplitude) != 0:
+        slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(mean_amplitude).reshape(-1), np.array(deltas).reshape(-1))
+        regression_line = slope * np.array(mean_amplitude).reshape(-1) + intercept
+        ax.plot(np.array(mean_amplitude).reshape(-1), regression_line, color='red', label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}')
     ax.legend(frameon=False)
     ax.set_xlabel('Mean Amplitude')
     ax.set_ylabel('$\sum var(\theta)$')
@@ -512,7 +512,7 @@ def plot_value(logparams, trials, goalcoord=[0.5], startcoord=[-0.75], goalsize=
     ax.legend(frameon=False, fontsize=6)
     # ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
     ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval.item(), color='g',linestyle='--',label='Start', linewidth=2)
+    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2)
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
 
 def plot_field_area(logparams, trials,ax=None):
@@ -579,7 +579,6 @@ def plot_pc(logparams, trial,title='', ax=None, goalcoord=[0.5], startcoord=[-0.
 
     xs = np.linspace(-1,1,1001)
     pcacts = predict_batch_placecell(logparams[trial], xs)
-    maxval = 0
 
     # Get a colormap that transitions from purple to yellow
     cmap = cm.viridis
@@ -592,10 +591,10 @@ def plot_pc(logparams, trial,title='', ax=None, goalcoord=[0.5], startcoord=[-0.
     ax.set_xlabel('Location (x)')
     ax.set_ylabel('Tuning curves $\phi(x)$')
     ax.set_title(title)
-    maxval = max(maxval, np.max(pcacts) * 1.1)
+
     # ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
     ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
+    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2)
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
     # plt.legend(frameon=False, fontsize=6)
 
@@ -618,14 +617,12 @@ def plot_com(logparams,goalcoords,stable_perf, ax=None):
 def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
     if ax is None:
         f,ax = plt.subplots()
-    maxval  = 0 
     xs = np.linspace(-1,1,1001)
 
     for trial in trials:
         pcacts = predict_batch_placecell(logparams[trial], xs)
-        dx = np.sum(pcacts,axis=1)/pcacts.shape[1]
+        dx = np.sum(pcacts,axis=1)
         ax.plot(xs, dx, label=f'T={trial}')
-        maxval = max(maxval, np.max(dx) * 1.1)
 
     ax.set_xlabel('Location (x)')
     ax.set_ylabel('Density $d(x)$')
@@ -633,7 +630,7 @@ def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75]
 
     # ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
     ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
+    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2)
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
 
 
@@ -668,7 +665,7 @@ def plot_frequency(allcoords, trials,ax=None, goalcoord=[0.5], startcoord=[-0.75
     # ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
     xs = np.linspace(-1,1,1001)
     ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
+    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2)
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
 
 
@@ -712,7 +709,7 @@ def plot_place_cells(params,startcoord, goalcoord,goalsize, title='', envsize=1)
     plt.tight_layout()
 
     plt.subplot(212)
-    plt.plot(xs, np.sum(pcacts,axis=1)/pcacts.shape[1], color='red')
+    plt.plot(xs, np.sum(pcacts,axis=1), color='red')
     plt.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
     plt.axvline(startcoord[0], color='g',linestyle='--',label='Start', linewidth=2)
     # plt.fill_betweenx(np.linspace(0,np.max(np.sum(pcacts,axis=1))), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25)
@@ -806,7 +803,7 @@ def plot_gif(logparams, startcoord=[-0.75], goalcoord=[0.5], goalsize=0.025, env
         for i in range(pcacts.shape[1]):
             plt.plot(xs, pcacts[:, i])
         plt.hlines(xmin=-envsize, xmax=envsize, y=0, colors='k')
-        plt.axvline(startcoord[0],ymin=0, ymax= 6.01, color='g', linestyle='--', label='Start', linewidth=2)
+        plt.axvline(startcoord[0],ymin=0, ymax= 1, color='g', linestyle='--', label='Start', linewidth=2)
         # plt.fill_betweenx(np.linspace(0,  6.01), goalcoord[0] - goalsize, goalcoord[0] + goalsize, color='r', alpha=0.25)
         plt.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
         plt.ylabel('Tuning curves $\phi(x)$')

@@ -20,6 +20,7 @@ class OneDimNav:
         self.initvelocity = np.array(initvelocity)
         self.max_reward = max_reward
         self.reward_type = 'gauss' # gauss or box
+        self.amp = 1 #(1/np.sqrt(2*np.pi*self.goalsize**2))
 
         # convert agent's onehot vector action to direction in the arena
         if self.actionsize ==3:
@@ -28,7 +29,7 @@ class OneDimNav:
             self.onehot2dirmat = np.array([[-1], [1]])  # move left, right, stay
 
     def reward_func(self,x, threshold=1e-2):
-        rx = 1 * np.exp(-0.5*((x - self.goal)/self.goalsize)**2)
+        rx =  self.amp * np.exp(-0.5*((x - self.goal)/self.goalsize)**2)
         return rx * (rx>threshold)
     
     def action2velocity(self, g):
