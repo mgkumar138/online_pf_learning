@@ -28,13 +28,13 @@ def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
         dxp = dx[x_indices]
         delta = np.mean(dxr)-np.mean(dxp)
         delta_dxr.append(delta)
-    return trials, np.array(delta_dxr)
+    return trials, dx, np.array(delta_dxr)
 
 def plot_change_density(logparams, trials, rcent=0.5, rsz=0.05, ax=None):
     if ax is None:
         f,ax = plt.subplots()
-    trials, dxr = compute_dxr(logparams, trials, rcent, rsz)
-    ax.plot(trials, dxr)
+    trials,dx, delta_dxr = compute_dxr(logparams, trials, rcent, rsz)
+    ax.plot(trials, delta_dxr)
     ax.set_xlabel('Trial')
     ax.set_ylabel(r"$[d(x_r) - d(x')]/N$")
 

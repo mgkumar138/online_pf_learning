@@ -171,8 +171,9 @@ if plot_figs:
     print(score, drift)
 
 if savecsv:
-    trials, dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,100, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
-    store_csv('./csvs/'+args.csvname+'.csv', args, ['trials','dxr'], [trials, dxr])
+    trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,100, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
+
+    store_csv('./csvs/'+args.csvname+'.csv', args, ['trials','dx', 'delta_dxr'], [trials, dx, delta_dxr])
     
 if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')
