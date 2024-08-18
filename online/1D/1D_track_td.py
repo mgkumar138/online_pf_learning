@@ -15,7 +15,7 @@ parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='
 parser.add_argument('--rsz', type=float, required=False, help='rsz', default=0.05)
 parser.add_argument('--rmax', type=int, required=False, help='rmax', default=5)
 
-parser.add_argument('--seed', type=int, required=False, help='seed', default=2020)
+parser.add_argument('--seed', type=int, required=True, help='seed', default=2020)
 parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default='uni')
 parser.add_argument('--npc', type=int, required=False, help='npc', default=64)
 parser.add_argument('--alpha', type=float, required=False, help='alpha', default=1.0)
@@ -33,9 +33,10 @@ parser.add_argument('--balpha', type=float, required=False, help='balpha', defau
 parser.add_argument('--paramsindex', type=int,nargs='+', required=False, help='paramsindex', default=[0,1,2])
 parser.add_argument('--noise', type=float, required=False, help='noise', default=0.000)
 
+parser.add_argument('--analysis', type=str, required=True, help='analysis', default='dx')
 parser.add_argument('--datadir', type=str, required=False, help='datadir', default='./data/')
 parser.add_argument('--figdir', type=str, required=False, help='figdir', default='./fig/')
-parser.add_argument('--csvname', type=str, required=False, help='csvname', default='results')
+parser.add_argument('--csvname', type=str, required=True, help='csvname', default='results')
 args, unknown = parser.parse_known_args()
 
 
