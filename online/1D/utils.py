@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import imageio
 from io import BytesIO
 from model import *
+import ast
 
 
 def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
@@ -41,24 +42,37 @@ def reward_func(x, xr, rsz, amp=1):
     rx =  amp  * np.exp(-0.5*((x - xr)/rsz)**2)  # (1/np.sqrt(2*np.pi*rsz**2))
     return rx 
 
+
 def store_csv(csv_file, args, names, variables):
     # Extract all arguments from args namespace
     arg_dict = vars(args)
     
-    # Add score and drift to the dictionary
+    # Initialize the dictionary for storing data
+    data_dict = {}
+    
+    # Add the arguments to the data dictionary
+    for key, value in arg_dict.items():
+        data_dict[key] = value
+    
+    # Add names and variables to the dictionary after converting variables to strings
     for name, variable in zip(names, variables):
-        arg_dict[name] = variable
-
-    # Create csv_columns from the keys of arg_dict
-    csv_columns = list(arg_dict.keys())
+        if isinstance(variable, (np.ndarray, list)):
+            variable_str = np.array2string(variable, separator=',').replace('\n', '')
+            data_dict[name] = variable_str
+        else:
+            data_dict[name] = variable
+    
+    # Create csv_columns from the keys of data_dict
+    csv_columns = list(data_dict.keys())
 
     file_exists = os.path.isfile(csv_file)
     
     with open(csv_file, 'a' if file_exists else 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
         if not file_exists:
-            writer.writeheader()  # file doesn't exist yet, write a header
-        writer.writerow(arg_dict)
+            writer.writeheader()  # File doesn't exist yet, write a header
+        writer.writerow(data_dict)
+
 
 
 def evaluate_loss(latencys, threshold=35, stability_window=10000):
