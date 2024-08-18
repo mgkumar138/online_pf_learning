@@ -23,11 +23,11 @@ def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
     dxs = []
     for trial in trials:
         pcacts = predict_batch_placecell(logparams[trial], xs)
-        dx = np.sum(pcacts,axis=1)/pcacts.shape[1]
+        dx = np.sum(pcacts,axis=1)
 
         dxr = dx[xr_indices]
         dxp = dx[x_indices]
-        delta = np.mean(dxr)-np.mean(dxp)
+        delta = (np.mean(dxr)-np.mean(dxp))/pcacts.shape[1]
         delta_dxr.append(delta)
         dxs.append(dx)
     return trials, np.array(dxs), np.array(delta_dxr)
