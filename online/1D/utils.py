@@ -495,11 +495,11 @@ def plot_l1norm(alpha_delta,stable_perf=0, ax=None):
 def plot_amplitude_drift(logparams, total_trials, stable_perf, ax=None):
     if ax is None:
         f,ax = plt.subplots()
-    param_delta = get_param_changes(logparams, total_trials, stable_perf)
+    param_delta = np.array(get_param_changes(logparams, total_trials, stable_perf))
     mean_amplitude = np.mean(param_delta[2]**2,axis=0)
     # delta_lambda = np.std(param_delta[0],axis=0)
     # delta_alpha = np.std(param_delta[2],axis=0)
-    deltas = np.sum(np.std(np.array(param_delta),axis=1),axis=0)
+    deltas = np.sum(np.std(param_delta,axis=1),axis=0)
     ax.scatter(mean_amplitude, deltas)
     if np.std(mean_amplitude) != 0:
         slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(mean_amplitude).reshape(-1), np.array(deltas).reshape(-1))
