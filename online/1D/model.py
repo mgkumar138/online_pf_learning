@@ -20,8 +20,8 @@ def random_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
     pc_cent =  np.linspace(-envsize,envsize,npc) 
     pc_sigma = np.ones(npc)*sigma
     np.random.seed(seed)
-    pc_constant = np.random.uniform(0, alpha,size=npc)
-    #pc_constant /= np.max(pc_constant)*alpha
+    # pc_constant = np.random.uniform(0, alpha,size=npc)
+    pc_constant = np.random.gamma(0.1, 0.1/alpha, size=npc)
     
     return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
     1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]

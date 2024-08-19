@@ -301,26 +301,6 @@ def plot_freq_density_corr(visits, frequency, density, title):
 def flatten(xss):
     return np.array([x for xs in xss for x in xs],dtype=np.float32)
 
-def random_zach_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
-    pc_cent =  np.linspace(-envsize,envsize,npc) 
-    pc_sigma = np.random.gamma(1, sigma/1,size=npc)
-    pc_constant = np.random.uniform(0, alpha,size=npc)
-    #pc_constant /= np.max(pc_constant)*alpha
-    
-    return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
-    1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
-
-def random_gamma_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
-    pc_cent =  np.linspace(-envsize,envsize,npc) 
-    pc_sigma = np.ones(npc)*sigma
-    np.random.seed(seed)
-    pc_constant = np.random.gamma(1, 0.1/1,size=npc)
-    #pc_constant /= np.max(pc_constant)*alpha
-    
-    return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
-    1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
-
-
 
 def plot_analysis(logparams,latencys,cum_rewards, allcoords, stable_perf, exptname=None , rsz=0.025):
     f, axs = plt.subplots(7,3,figsize=(12,21))
@@ -375,7 +355,7 @@ def plot_analysis(logparams,latencys,cum_rewards, allcoords, stable_perf, exptna
     param_delta = get_param_changes(logparams, total_trials)
     plot_param_variance(param_delta, total_trials, stable_perf,axs=axs[5])
 
-    plot_l1norm(param_delta[2], ax=axs[5,2], stable_perf=stable_perf)
+    plot_l1norm(param_delta[2], ax=axs[5,2].twinx(), stable_perf=stable_perf)
 
     # plot_policy(logparams,ax=axs[6,0])
 
@@ -611,16 +591,16 @@ def plot_pc(logparams, trial,title='', ax=None, goalcoord=[0.5], startcoord=[-0.
     
     for i in range(num_curves):
         color = cmap(i / num_curves)
-        ax.plot(xs, pcacts[:, i], color=color)
+        ax.plot(xs, pcacts[:, i], color=color,zorder=1)
 
     ax.set_xlabel('Location (x)')
     ax.set_ylabel('Tuning curves $\phi(x)$')
     ax.set_title(title)
 
     # ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
+    ax.fill_between(xs, reward_func(xs, goalcoord, goalsize), color='red', alpha=0.25, label='Target',zorder=2)
+    ax.axvline(startcoord[0],ymin=0, ymax=1, color='g',linestyle='--',label='Start', linewidth=2,zorder=2)
+    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k',zorder=2)
     # plt.legend(frameon=False, fontsize=6)
 
 def plot_com(logparams,goalcoords,stable_perf, ax=None):
