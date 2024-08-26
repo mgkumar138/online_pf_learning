@@ -7,6 +7,65 @@ import csv
 import matplotlib.cm as cm
 import imageio
 from io import BytesIO
+from matplotlib.patches import Ellipse
+from model import predict_batch_placecell
+
+def plot_place_cells(params, startcoord, goalcoord=None, goalsize=0.1, title='2D', envsize=1, obstacles=False):
+    pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
+    num = len(pc_centers)
+
+    plt.figure(figsize=(4, 3))  # Adjust figure size
+    plt.title(title)
+    
+    if goalcoord is not None:
+        circle = plt.Circle(goalcoord, goalsize, color='r', fill=True, zorder=2)
+        plt.gca().add_patch(circle)
+    
+    if obstacles:
+        from matplotlib.patches import Rectangle
+        plt.gca().add_patch(Rectangle((-0.6, 0.3), 0.2, 0.7, facecolor='grey'))  # top left
+        plt.gca().add_patch(Rectangle((0.4, 0.3), 0.2, 0.7, facecolor='grey'))  # top right
+        plt.gca().add_patch(Rectangle((-0.6, -0.3), 0.2, -0.7, facecolor='grey'))  # bottom left
+        plt.gca().add_patch(Rectangle((0.4, -0.3), 0.2, -0.7, facecolor='grey'))  # bottom right
+
+    # Check if sigma has a shape for 2D ellipses
+    for i in range(num):
+        if pc_sigmas[i].shape[0] > 1:
+            # Ellipses for 2D Gaussians
+            width = 2 * np.sqrt(pc_sigmas[i][0, 0])
+            height = 2 * np.sqrt(pc_sigmas[i][1, 1])
+            ellipse = Ellipse(xy=pc_centers[i], width=width, height=height, angle=0, edgecolor='g', fc='None', zorder=1)
+            plt.gca().add_patch(ellipse)
+            plt.scatter(pc_centers[i][0], pc_centers[i][1], s=5, color='purple', zorder=3)
+        else:
+            # Circles for isotropic Gaussians
+            circle = plt.Circle(pc_centers[i], np.sqrt(2 * pc_sigmas[i][0, 0]), color='g', fill=False, zorder=1)
+            plt.gca().add_patch(circle)
+            plt.scatter(pc_centers[i][0], pc_centers[i][1], s=5, color='purple', zorder=3)
+
+    plt.scatter(startcoord[0], startcoord[1], s=5, color='blue', label='Start', zorder=3)  # Mark start coordinate
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.xticks(np.linspace(-1, 1, 3))
+    plt.yticks(np.linspace(-1, 1, 3))
+    plt.xlim(-1, 1)
+    plt.ylim(-1, 1)
+    # plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def plot_maps(actor_weights,critic_weights, env, npc, title=None):
+    npcs = int(npc**0.5)
+    plt.figure(figsize=(3,2))
+    plt.imshow(critic_weights.reshape([npcs, npcs]), origin='lower')
+    plt.colorbar()
+    dirction = np.matmul(actor_weights, env.onehot2dirmat)
+    xx, yy = np.meshgrid(np.arange(npcs), np.arange(npcs))
+    plt.quiver(xx.reshape(-1),yy.reshape(-1), dirction[:,0], dirction[:,1], color='k', scale_units='xy')
+    plt.gca().set_aspect('equal')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Value & Policy maps')
+    plt.tight_layout()
 
 
 def store_csv(csv_file, args, score, drift):
@@ -630,58 +689,6 @@ def plot_frequency(allcoords, trials,ax=None, goalcoord=[0.5], startcoord=[-0.75
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
 
 
-
-def plot_place_cells(params,startcoord, goalcoord,goalsize, title='', envsize=1):
-    xs = np.linspace(-envsize,envsize,1000)
-    pcacts = []
-    velocity = []
-    for x in xs:
-        pc = predict_placecell(params, x)
-        actout = np.matmul(pc, params[3])
-        aprob = softmax(2 * actout)
-        if params[3].shape[1] == 3:
-            vel = np.matmul(aprob, np.array([[-1], [1], [0]]))
-        else:
-            vel = np.matmul(aprob, np.array([[-1], [1]]))
-        pcacts.append(pc)
-        velocity.append(np.tanh(vel)*0.1)
-    pcacts = np.array(pcacts)
-    velocity = np.array(velocity)
-
-    plt.figure(figsize=(4,4))
-    plt.subplot(211)
-    plt.title(title)
-
-    cmap = cm.viridis
-    num_curves = pcacts.shape[1]
-     
-    for i in range(num_curves):
-        color = cmap(i / num_curves)
-        ax.plot(xs, pcacts[:, i], color=color)
-
-    plt.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
-    plt.axvline(startcoord[0], color='g',linestyle='--',label='Start', linewidth=2)
-    #plt.axvline(goalcoord[0], color='r',linestyle='--',label='Goal', linewidth=2)
-    plt.fill_betweenx(np.linspace(0,np.max(pcacts)), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25)
-    #plt.ylim([-0.25, 1.25])
-    plt.ylabel('Tuning curves $\phi(x)$')
-    plt.xlabel('Location (x)')
-    plt.tight_layout()
-
-    plt.subplot(212)
-    plt.plot(xs, np.sum(pcacts,axis=1), color='red')
-    plt.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
-    plt.axvline(startcoord[0], color='g',linestyle='--',label='Start', linewidth=2)
-    plt.fill_betweenx(np.linspace(0,np.max(np.sum(pcacts,axis=1))), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25)
-    plt.ylabel('Field density $d(x)$')
-    plt.xlabel('Location (x)')
-    ax = plt.twinx()
-    ax.plot(xs, velocity, color='k')
-    ax.set_ylabel('Avg velocity $V(x)$')
-    ax.set_ylim(-0.1,0.1)
-    #plt.title('Fixed Rewards: Higher place field density at reward location')
-    plt.tight_layout()
-    return pcacts
 
 
 def moving_average(signal, window_size):

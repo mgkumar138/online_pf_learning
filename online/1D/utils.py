@@ -10,6 +10,48 @@ from io import BytesIO
 from model import *
 import ast
 
+def compute_alpha_theory(logparams,total_trials,num=1000, ax=None):
+    lambdas = []
+    sigmas = []
+    alphas = []
+    policys = []
+    values = []
+    episodes = np.arange(total_trials)
+    for e in episodes:
+        lambdas.append(logparams[e][0])
+        sigmas.append(logparams[e][1])
+        alphas.append(logparams[e][2])
+        policys.append(logparams[e][3])
+        values.append(logparams[e][4])
+    lambdas = np.array(lambdas)
+    sigmas = np.array(sigmas)
+    alphas = np.array(alphas)
+    policys = np.array(policys)
+    values = np.array(values)
+
+    xs, ys = [],[]
+    trials = np.logspace(np.log10(1.0),np.log10(total_trials), num,dtype=int)-1
+    for t in trials:
+        x = values[t,:,0]**2
+        y = alphas[t]-alphas[0]
+        xs.append(x)
+        ys.append(y)
+
+    xs = np.array(xs).reshape(-1)
+    ys = np.array(ys).reshape(-1)
+
+    if ax is None:
+        f,ax = plt.subplots()
+    ax.scatter(xs, ys)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(xs, ys)
+    regression_line = slope *xs + intercept
+    ax.plot(xs, regression_line, label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}',color='k')
+    ax.legend(frameon=False)
+    ax.set_xlabel('$w_v^2$')
+    ax.set_ylabel('$\\alpha-\\alpha_0$')
+
+    
+
 def compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001):
     trials, pv_corr,rep_corr, _, _ = get_pvcorr(logparams, stable_perf, train_episodes, num)
     var_pv = np.std(pv_corr)
@@ -619,7 +661,7 @@ def plot_com(logparams,goalcoords,stable_perf, ax=None):
     ax.set_xlabel('Before')
     ax.set_ylabel('After')
 
-def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
+def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, color='k'):
     if ax is None:
         f,ax = plt.subplots()
     xs = np.linspace(-1,1,1001)
@@ -627,7 +669,7 @@ def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75]
     for trial in trials:
         pcacts = predict_batch_placecell(logparams[trial], xs)
         dx = np.sum(pcacts,axis=1)
-        ax.plot(xs, dx, label=f'T={trial}')
+        ax.plot(xs, dx, label=f'T={trial}',color=color)
 
     ax.set_xlabel('Location (x)')
     ax.set_ylabel('Density $d(x)$')

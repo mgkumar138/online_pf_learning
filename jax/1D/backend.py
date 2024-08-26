@@ -249,7 +249,7 @@ def predict_value(params, pcact):
     value = jnp.matmul(pcact, critic_weights)
     return value
 
-def predict_action(params, pcact, beta=2):
+def predict_action(params, pcact, beta=1):
     pc_centers, pc_sigmas, pc_constant, actor_weights,critic_weights = params
     actout = jnp.matmul(pcact, actor_weights)
     aprob = nn.softmax(beta * actout)
@@ -262,13 +262,12 @@ def pg_loss(params, coords, actions, discount_rewards, betas):
         aprob = predict_action(params, pcact)
         aprobs.append(aprob)
     aprobs = jnp.array(aprobs)
-    neg_log_likelihood = jnp.log(aprobs) * actions  # log probability of action as policy
+    neg_log_likelihood = np.sum(jnp.log(aprobs) * actions,axis=1)  # log probability of action as policy
     weighted_rewards = lax.stop_gradient(jnp.array(discount_rewards)[:,None])
     actor_loss = jnp.sum(jnp.array(neg_log_likelihood * weighted_rewards))  # log policy * discounted reward
 
     alpha_reg = -jnp.linalg.norm(params[2], ord=1) * (1/len(params[2]))
-    sigma_reg = -jnp.linalg.norm(params[1], ord=2)**2 / (len(params[1])*0.1**2)
-    tot_loss = actor_loss + betas[1] * alpha_reg + betas[2] * sigma_reg
+    tot_loss = actor_loss + betas[1] * alpha_reg
     return tot_loss
 
 @jit
@@ -304,8 +303,7 @@ def a2c_loss(params, coords, actions, discount_rewards, betas):
     actor_loss = jnp.sum(log_likelihood * lax.stop_gradient(advantage))  # log policy * discounted reward
     critic_loss = -jnp.sum(advantage ** 2) # grad decent
     alpha_reg = -jnp.linalg.norm(params[2], ord=1) * (1/len(params[2]))
-    sigma_reg = -jnp.linalg.norm(params[1], ord=2)**2 / (len(params[1])*0.1**2)
-    tot_loss = actor_loss + betas[0] * critic_loss + betas[1] * alpha_reg + betas[2] * sigma_reg
+    tot_loss = actor_loss + 0.5 * critic_loss + betas[1] * alpha_reg
     return tot_loss
 
 @jit
@@ -335,14 +333,13 @@ def td_loss(params, coords, actions, rewards, gamma, betas):
     aprobs = jnp.array(aprobs)
     values = jnp.array(values)
 
-    log_likelihood = jnp.log(aprobs) * actions  # log probability of action as policy
+    log_likelihood = np.sum(jnp.log(aprobs) * actions,axis=1)  # log probability of action as policy
     tde = jnp.array(compute_reward_prediction_error(rewards[:,None], values, gamma))
 
     actor_loss = jnp.sum(log_likelihood * lax.stop_gradient(tde))  # log policy * discounted reward
     critic_loss = -jnp.sum(tde ** 2) # grad decent
     alpha_reg = -jnp.linalg.norm(params[2], ord=1) * (1/len(params[2]))
-    sigma_reg = -jnp.linalg.norm(params[1], ord=2)**2 / (len(params[1])*0.1**2)
-    tot_loss = actor_loss + betas[0] * critic_loss + betas[1] * alpha_reg + betas[2] * sigma_reg
+    tot_loss = actor_loss + 0.5 * critic_loss + betas[1] * alpha_reg
     return tot_loss
 
 @jit
@@ -701,6 +698,7 @@ def plot_place_cells(params,startcoord, goalcoord,goalsize, title='', envsize=1)
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
 
+
 class OneDimNav:
     def __init__(self,nact,maxspeed=0.1, envsize=1, goalsize=0.1, tmax=100, goalcoord=[0.8], startcoord=[-0.8], initvelocity=1.0, max_reward=3) -> None:
         self.tmax = tmax  # maximum steps per trial
@@ -714,16 +712,22 @@ class OneDimNav:
         self.statesize = 1
         self.actionsize = nact
         self.maxspeed = maxspeed  # max agent speed per step
-        self.tauact = 0.25
+        self.tauact = 0.2
         self.total_reward = 0
         self.initvelocity = np.array(initvelocity)
         self.max_reward = max_reward
+        self.reward_type = 'gauss' # gauss or box
+        self.amp = 1 #(1/np.sqrt(2*np.pi*self.goalsize**2))
 
         # convert agent's onehot vector action to direction in the arena
         if self.actionsize ==3:
             self.onehot2dirmat = np.array([[-1], [1], [0]])  # move left, right, lick
         else:
             self.onehot2dirmat = np.array([[-1], [1]])  # move left, right, stay
+
+    def reward_func(self,x, threshold=1e-2):
+        rx =  self.amp * np.exp(-0.5*((x - self.goal)/self.goalsize)**2)
+        return rx * (rx>threshold)
     
     def action2velocity(self, g):
         # convert onehot action vector from actor to velocity
@@ -763,15 +767,11 @@ class OneDimNav:
     
     def step(self, g):
         self.t +=1
-        newvelocity = self.action2velocity(g) #* self.maxspeed  # get velocity from agent's onehot action
-
-        # newvelocity = np.clip(newvelocity, 0,1)
-        # self.velocity = np.clip(1.0 - newvelocity,0,1)
-        # newstate = self.state.copy() + self.velocity * self.maxspeed 
+        acceleration = self.action2velocity(g) * self.maxspeed  # get velocity from agent's onehot action
 
         # self.velocity += self.tauact * (newvelocity)  # smoothen actions so that agent explores the entire arena. From Foster et al. 2000
-        self.velocity += self.tauact * (-self.velocity + newvelocity)
-        newstate = self.state.copy() + np.clip(self.velocity, -1,1) * self.maxspeed  #np.clip(self.velocity,-self.maxspeed,self.maxspeed)   # update state with action velocity
+        self.velocity += self.tauact * (-self.velocity + acceleration)
+        newstate = self.state.copy() + self.velocity
 
         self.track.append(self.state.copy())
 
@@ -779,15 +779,6 @@ class OneDimNav:
         if newstate > self.maxsize or newstate < -self.maxsize:
             newstate = self.state.copy()
             self.velocity = np.zeros(self.statesize)
-
-        # if newstate > self.maxsize:
-        #     newstate = newstate -2
-        #     #self.velocity = np.zeros(self.statesize)
-        #     #self.done = True
-        # if newstate < -self.maxsize:
-        #     newstate = newstate +2
-        #     #self.velocity = np.zeros(self.statesize)
-        #     #self.done = True
         
         # if new state does not violate boundary or obstacles, update new state
         self.state = newstate.copy()
@@ -796,17 +787,23 @@ class OneDimNav:
 
         # check if agent is within radius of goal
         self.reward = 0
-        if (self.eucdist < self.goalsize).any():
-            # if nact = 2, agent needs to be in the vicinty of goal to get a reward
-            if self.actionsize == 2:
-                self.reward = 1
-                self.total_reward +=1 
+        if self.reward_type == 'box':
+            if (self.eucdist < self.goalsize).any():
+                # if nact = 2, agent needs to be in the vicinty of goal to get a reward
+                if self.actionsize == 2:
+                    self.reward = 1
+                    self.total_reward +=1 
 
-            # if nact = 3, agent has to lick to get a reward, not merely be in vicinty of goal
-            if self.actionsize == 3 and newvelocity == 0:
-                self.reward = 1
-                self.total_reward +=1 
-        
+                # if nact = 3, agent has to lick to get a reward, not merely be in vicinty of goal
+                if self.actionsize == 3 and acceleration == 0:
+                    self.reward = 1
+                    self.total_reward +=1 
+
+        elif self.reward_type == 'gauss':
+            self.reward = self.reward_func(self.state, threshold=0)
+            # self.reward *= reward_mod
+            if self.reward >1e-2:
+                self.total_reward +=1
         
 
         if self.total_reward == self.max_reward:
@@ -835,7 +832,10 @@ class OneDimNav:
                 plt.eventplot(s, color='g') 
             else:
                 plt.eventplot(s, color='b', zorder=1) 
-        
+   
+
+
+
 def softmax_grad(s):
     # input s is softmax value of the original input x. Its shape is (1,n) 
     # i.e.  s = np.array([0.3,0.7]),  x = np.array([0,1])

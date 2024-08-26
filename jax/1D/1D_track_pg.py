@@ -14,13 +14,13 @@ print(device)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=50000)
-parser.add_argument('--plr', type=float, required=False, help='plr', default=0.00005)
-parser.add_argument('--llr', type=float, required=False, help='llr', default=0.00005)
-parser.add_argument('--alr', type=float, required=False, help='alr', default=0.00005)
-parser.add_argument('--slr', type=float, required=False, help='slr', default=0.000)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=10000)
+parser.add_argument('--plr', type=float, required=False, help='plr', default=0.001)
+parser.add_argument('--llr', type=float, required=False, help='llr', default=0.001)
+parser.add_argument('--alr', type=float, required=False, help='alr', default=0.001)
+parser.add_argument('--slr', type=float, required=False, help='slr', default=0.001)
 parser.add_argument('--gamma', type=float, required=False, help='gamma', default=0.9)
-parser.add_argument('--npc', type=int, required=False, help='npc', default=13)
+parser.add_argument('--npc', type=int, required=False, help='npc', default=16)
 parser.add_argument('--seed', type=int, required=False, help='seed', default=2020)
 parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default='uni')
 parser.add_argument('--balpha', type=float, required=False, help='balpha', default=0.0)
@@ -36,7 +36,7 @@ tmax = 100
 # env pararms
 envsize = 1
 maxspeed = 0.1
-goalsize = 0.025
+goalsize = 0.05
 startcoord = [-0.75]
 goalcoord = [0.5]
 seed = args.seed
@@ -61,7 +61,7 @@ pc_eta = args.llr
 sigma_eta = args.slr
 constant_eta = args.alr
 etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
-betas = [0.0, args.balpha, 0.0]
+betas = [0.0, args.balpha]
 gamma = args.gamma
 
 savevar = False
@@ -151,7 +151,7 @@ if savevar:
 #%%
 env.plot_trajectory()
 
-f = plot_analysis(logparams, latencys, allcoords, stable_perf=30000)
+f = plot_analysis(logparams, latencys, allcoords, stable_perf=10000)
 
 if savefig:
     f.savefig(figdir+'analysis_'+exptname+'.png')

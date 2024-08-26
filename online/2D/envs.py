@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 class NDimNav:
-    def __init__(self,nact=4,maxspeed=0.1, envsize=1, goalsize=0.1, tmax=100, goalcoord=[0.8,0.8], startcoord=[-0.8,-0.8], max_reward=5, obstacles=False) -> None:
+    def __init__(self,nact=4,maxspeed=0.1, envsize=1, goalsize=0.1, tmax=300, goalcoord=[0.8,0.8], startcoord=[[-0.8,-0.8]], max_reward=5, obstacles=False) -> None:
         self.tmax = tmax  # maximum steps per trial
         self.minsize = -envsize  # arena size
         self.maxsize = envsize
@@ -19,6 +19,9 @@ class NDimNav:
         self.total_reward = 0
         self.obstacles = obstacles
         self.max_reward = max_reward
+        self.starts = np.array(startcoord)
+        self.reward_type = 'gauss'
+        self.amp = 1
 
         # convert agent's onehot vector action to direction in the arena
         self.onehot2dirmat = np.array([
@@ -28,9 +31,9 @@ class NDimNav:
             [-1,0]  # left
         ])
 
-    def reward_func(self,x):
-        rx = 1 * np.exp(-0.5*((x - self.goal)/self.goalsize)**2)
-        return rx * (rx>1e-2)
+    def reward_func(self,x, threshold=1e-2):
+        rx =  self.amp * np.exp(-0.5*np.linalg.norm(x - self.goal)**2/self.goalsize**2)
+        return rx * (rx>threshold)
     
     def action2velocity(self, g):
         # convert onehot action vector from actor to velocity
@@ -57,7 +60,6 @@ class NDimNav:
         self.track.append(self.state.copy())
 
         self.velocity = np.zeros(self.statesize)
-        self.velocity += self.initvelocity
 
         #print(f"State: {self.state}, Goal: {self.goal}")
         return self.state, self.goal, self.reward, self.done
@@ -101,13 +103,16 @@ class NDimNav:
 
         # check if agent is within radius of goal
         self.reward = 0
-        if (self.eucdist < self.goalsize).any():
-            self.reward = 1
-            self.total_reward +=1 
-        
-        #convert the square reward to gaussian
-        # reward_mod = self.reward_func(self.state)
-        # self.reward *= reward_mod
+        if self.reward_type == 'box':
+            if (self.eucdist < self.goalsize).any():
+                self.reward = 1
+                self.total_reward +=1 
+
+        elif self.reward_type == 'gauss':
+            self.reward = self.reward_func(self.state, threshold=0)
+            # self.reward *= reward_mod
+            if self.reward >1e-2:
+                self.total_reward +=1
         
         if self.total_reward == self.max_reward:
             self.done = True

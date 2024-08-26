@@ -21,10 +21,16 @@ def random_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
     pc_sigma = np.ones(npc)*sigma
     np.random.seed(seed)
     # pc_constant = np.random.uniform(0, alpha,size=npc)
-    pc_constant = np.random.gamma(0.1, 0.1/alpha, size=npc)
+    pc_constant = draw_gamma_samples(mean=alpha, variance=0.01, size=npc)
     
     return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
     1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
+
+
+def draw_gamma_samples(mean, variance, size):
+    k = mean**2 / variance  # Shape parameter
+    theta = variance / mean # Scale parameter
+    return np.random.gamma(shape=k, scale=theta, size=size)
 
 
 def predict_placecell(params, x):
@@ -63,7 +69,7 @@ def get_onehot_action(prob, nact=2):
     onehotg[A] = 1
     return onehotg
 
-def learn(params, reward, newstate,state, onehotg,aprob, gamma, etas,balpha=0.0, noise=0.0, paramsindex=[], beta=1):
+def learn(params, reward, newstate,state, onehotg,aprob, gamma, etas,balpha=0.0, noise=0.0, paramsindex=[], beta=1, bptype='both'):
     
     pcact = predict_placecell(params, state)
     newpcact = predict_placecell(params, newstate)
@@ -79,7 +85,14 @@ def learn(params, reward, newstate,state, onehotg,aprob, gamma, etas,balpha=0.0,
     dact = (pcact[:,None] @ decay.T) * td
 
     # get phi grads: dp = phi' (W^actor @ act + W^critic) * td
-    post_td = (params[3] @ decay + params[4]) * td
+    if bptype == 'both':
+        post_td = (params[3] @ decay + params[4]) * td
+    elif bptype ==  'cri':
+        post_td = params[4] * td
+    elif bptype == 'act':
+        post_td = (params[3] @ decay) * td
+    elif bptype == 'none':
+        post_td = td
 
     dpcc = (post_td * (pcact[:,None]) * ((state - params[0])/params[1]**2)[:,None])[:,0]
     dpcs = (post_td * (pcact[:,None]) * ((state - params[0])**2/params[1]**3)[:,None])[:,0]

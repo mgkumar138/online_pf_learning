@@ -5,3 +5,6 @@
 *log*
 *.pickle
 *copy*
+*png*
+.git
+*.pyc*
