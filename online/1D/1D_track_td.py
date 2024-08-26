@@ -17,7 +17,7 @@ parser.add_argument('--rmax', type=int, required=False, help='rmax', default=5)
 
 parser.add_argument('--seed', type=int, required=False, help='seed', default=2020)
 parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default='uni')
-parser.add_argument('--bptype', type=str, required=False, help='pcinit', default='none')
+parser.add_argument('--bptype', type=str, required=False, help='bptype', default='both')
 parser.add_argument('--npc', type=int, required=False, help='npc', default=16)
 parser.add_argument('--alpha', type=float, required=False, help='alpha', default=0.5)
 parser.add_argument('--sigma', type=float, required=False, help='sigma', default=0.1)
