@@ -82,7 +82,7 @@ beta = args.beta
 
 plot_figs= True
 savecsv = False
-savevar = True
+savevar = False
 savefig = False
 savegif = False
 
@@ -183,7 +183,7 @@ print(var_pv, var_rc, var_pv/var_gr, var_rc/var_gr)
 
 if savecsv:
     if args.analysis == 'dx':
-        store_csv(args.csvname+'.csv', args, ['latencys','cumr','trials','dx', 'delta_dxr'], [latencys, cum_rewards, trials, dx, delta_dxr])
+        store_csv('./csvs/drift_'+args.csvname+'.csv', args, ['latencys','cumr','trials','dx', 'delta_dxr'], [latencys, cum_rewards, trials, dx, delta_dxr])
 
     elif args.analysis == 'drift':
         store_csv('./csvs/drift_'+args.csvname+'.csv', args, ['var_pv', 'var_rc', 'var_gr', 'var_lat'], [var_pv,var_rc, var_gr, var_lat])
