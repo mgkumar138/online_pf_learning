@@ -32,7 +32,7 @@ class NDimNav:
         ])
 
     def reward_func(self,x, threshold=1e-2):
-        rx =  self.amp * np.exp(-0.5*np.linalg.norm(x - self.goal)**2/self.goalsize**2)
+        rx =  self.amp * np.exp(-0.5 * np.sum(((x - self.goal) / self.goalsize) ** 2))
         return rx * (rx>threshold)
     
     def action2velocity(self, g):

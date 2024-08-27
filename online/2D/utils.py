@@ -10,6 +10,12 @@ from io import BytesIO
 from matplotlib.patches import Ellipse
 from model import predict_batch_placecell
 
+def get_statespace(num=51):
+    x = np.linspace(-1,1,num)
+    xx,yy = np.meshgrid(x,x)
+    xs = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    return xs
+
 def plot_place_cells(params, startcoord, goalcoord=None, goalsize=0.1, title='2D', envsize=1, obstacles=False):
     pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
     num = len(pc_centers)
@@ -595,29 +601,34 @@ def plot_velocity(logparams, trials, goalcoord=[0.5], startcoord=[-0.75], goalsi
     
 
 def plot_pc(logparams, trial,title='', ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
-    if ax is None:
-        f,ax = plt.subplots()
-
-    xs = np.linspace(-1,1,1001)
+    num = 31
+    xs = get_statespace(num)
     pcacts = predict_batch_placecell(logparams[trial], xs)
-    maxval = 0
 
-    # Get a colormap that transitions from purple to yellow
-    cmap = cm.viridis
+    gaussian_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+
     num_curves = pcacts.shape[1]
+    yidx = xidx = int(num_curves**0.5)
+    if ax is None:
+        f,ax = plt.subplots(yidx, xidx, figsize=(12,12))
     
+    ax[-1,xidx//2].set_xlabel('x')
+    ax[yidx//2, 0].set_ylabel('$\phi(x)$')
+    
+    ax = ax.flatten()
     for i in range(num_curves):
-        color = cmap(i / num_curves)
-        ax.plot(xs, pcacts[:, i], color=color)
+        ax[i].imshow(pcacts[:, i].reshape(num, num), origin='lower')
+        ax[i].imshow(gaussian_grid, cmap='OrRd', origin='lower')
 
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel('Tuning curves $\phi(x)$')
-    ax.set_title(title)
-    maxval = max(maxval, np.max(pcacts) * 1.1)
-    ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
+        ax[i].set_xticks([],[])
+        ax[i].set_yticks([],[])
+        max_value = np.max(pcacts[:, i])
+        ax[i].text(1.0, 0.0, f'{max_value:.2f}', transform=ax[i].transAxes,
+                fontsize=6, color='red', ha='right')
+
+    f.suptitle(title)
     # plt.legend(frameon=False, fontsize=6)
+    f.tight_layout()
 
 def plot_com(logparams,goalcoords,stable_perf, ax=None):
     if ax is None:
@@ -689,7 +700,14 @@ def plot_frequency(allcoords, trials,ax=None, goalcoord=[0.5], startcoord=[-0.75
     ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
 
 
+def reward_func(xs,goal, rsz, threshold=1e-2):
+    rx =  np.exp(-0.5 * np.sum(((xs - goal) / rsz) ** 2, axis=1))
+    return rx * (rx>threshold)
 
+def gaussian(xs, center, sigma):
+    values = np.exp(-0.5 * np.sum(((xs - center) / sigma) ** 2, axis=1))
+    values[values < 0.01] = np.nan  # Convert values less than 0.01 to NaN
+    return values
 
 def moving_average(signal, window_size):
     # Pad the signal to handle edges properly
