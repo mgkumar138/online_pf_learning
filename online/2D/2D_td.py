@@ -48,7 +48,7 @@ tmax = args.tmax
 envsize = 1
 maxspeed = 0.1
 goalsize = args.rsz
-startcoord = [-0.5,-0.5]
+startcoord = [-0.75,-0.75]
 goalcoords = args.goalcoords
 seed = args.seed
 initvelocity = 0.0
@@ -75,7 +75,7 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 gamma = args.gamma
 balpha = args.balpha
 
-plot_figs= True
+plot_figs= False
 savecsv = False
 savevar = True
 savefig = False
@@ -159,12 +159,15 @@ for episode in range(train_episodes):
     print(f'Goal {goalcoords}, Trial {episode+1}, G {np.sum(discount_rewards):.3f}, t {latency}, L {tds:.3f}, a {np.linalg.norm(params[2],ord=1):.3f}, s {np.mean(params[1],axis=0)[1,0]:.1f}')
 
 
+if savevar:
+    saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
 
 #%%
 env.plot_trajectory()
 
-if savevar:
-    saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
+
+
+
 
 stable_perf = train_episodes//2
 f,score, drift = plot_analysis(logparams, latencys, allcoords, stable_perf, exptname=exptname, rsz=goalsize)

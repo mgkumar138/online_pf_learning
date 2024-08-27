@@ -61,7 +61,7 @@ def compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, 
     return var_pv,var_rc, var_gr_, var_lat_
 
 def compute_dxr(logparams, trials, rcent=0.5, rsz=0.05):
-    xs = np.linspace(-0.9,0.9,1001)
+    xs = np.linspace(-1.0,1.0,1001)
     threshold = 1e-2
     rx = reward_func(xs, rcent, rsz)
 

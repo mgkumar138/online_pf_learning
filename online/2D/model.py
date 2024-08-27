@@ -66,7 +66,7 @@ def predict_action_prob(params, pcact, beta=1):
     aprob = softmax(beta * actout)
     return aprob
 
-def get_onehot_action(prob, nact=2):
+def get_onehot_action(prob, nact=4):
     A = np.random.choice(a=np.arange(nact), p=np.array(prob))
     onehotg = np.zeros(nact)
     onehotg[A] = 1

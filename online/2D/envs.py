@@ -37,6 +37,7 @@ class NDimNav:
     
     def action2velocity(self, g):
         # convert onehot action vector from actor to velocity
+        print(g.shape, self.onehot2dirmat.shape)
         return np.matmul(g, self.onehot2dirmat)
 
     
