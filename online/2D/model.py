@@ -31,16 +31,12 @@ def random_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
 
 
 def predict_placecell(params, x):
-    pc_centers, pc_sigmas, pc_constant, actor_weights,critic_weights = params
-    npcs = params[0].shape[0]
-    pcacts = []
-    inv_sigma = np.linalg.inv(pc_sigmas)
-    for n in range(npcs):
-        diff = (x[:,None]-pc_centers[n][:,None])
-        exponent = diff.T @ inv_sigma[n] @ diff
-        pcact = np.exp(-0.5*exponent) * pc_constant[n]**2
-        pcacts.append(pcact)
-    return np.vstack(pcacts)[:,0]
+    pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
+    diff = x - pc_centers  # Shape: (npc, dim)
+    inv_sigma = np.linalg.inv(pc_sigmas)  # Shape: (npc, dim, dim)
+    exponent = np.einsum('ni,nij,nj->n', diff, inv_sigma, diff)
+    pcacts = np.exp(-0.5 * exponent) * pc_constant**2
+    return pcacts
 
 def predict_batch_placecell(params, xs):  
     pcacts = []  
@@ -48,7 +44,6 @@ def predict_batch_placecell(params, xs):
         pcacts.append(predict_placecell(params, x))
     pcacts = np.array(pcacts)
     return pcacts
-
 
 def predict_value(params, pcact):
     pc_centers, pc_sigmas, pc_constant, actor_weights,critic_weights = params
@@ -72,55 +67,48 @@ def get_onehot_action(prob, nact=4):
     onehotg[A] = 1
     return onehotg
 
-def learn(params, reward, newstate,state, onehotg,aprob, gamma, etas,balpha=0.0, noise=0.0, paramsindex=[], beta=1):
+
+def learn(params, reward, newstate, state, onehotg, aprob, gamma, etas, balpha=0.0, noise=0.0, paramsindex=[], beta=1):
     pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
+    
+    # Predict place cell activations
     pcact = predict_placecell(params, state)
     newpcact = predict_placecell(params, newstate)
+    
+    # Predict values
+    value = np.dot(pcact, critic_weights)
+    newvalue = np.dot(newpcact, critic_weights)
+    td = reward + gamma * newvalue - value
 
-    value = predict_value(params, pcact)
-    newvalue = predict_value(params, newpcact)
-    td = (reward + gamma * newvalue - value)[0]
-
-    l1_grad = balpha * np.sign(params[2])
-
+    l1_grad = balpha * np.sign(pc_constant)
+    
     # Critic grads
     dcri = pcact[:, None] * td
-
+    
     # Actor grads
-    decay = beta * (onehotg[:, None] - aprob[:, None])  # derived from softmax grads
-    dact = (pcact[:, None] @ decay.T) * td
-
+    decay = beta * (onehotg[:, None] - aprob[:, None])
+    dact = np.dot(pcact[:, None], decay.T) * td
+    
     # Grads for field parameters
     post_td = (actor_weights @ decay + critic_weights) * td
-    dpcc = np.zeros_like(pc_centers)
-    dpcs = np.zeros_like(pc_sigmas)
-    dpca = np.zeros_like(pc_constant)
 
+    df = state - pc_centers
     inv_sigma = np.linalg.inv(pc_sigmas)
-    for n in range(params[0].shape[0]):
-        diff = state - pc_centers[n]
 
-        exp_term = np.exp(-0.5 * diff.T @ inv_sigma[n] @ diff)
-        
-        # Gradient wrt. pc_cent
-        dpcc[n] = post_td[n] * pc_constant[n]**2 * exp_term * inv_sigma[n] @ diff
-        
-        # Gradient wrt. pc_sigma
-        diff_outer = np.outer(diff, diff)
-        dpcs[n] = 0.5 * post_td[n] * pc_constant[n]**2 * exp_term * inv_sigma[n] @ diff_outer @ inv_sigma[n]
-        
-        # Gradient wrt. pc_constant
-        dpca[n] = 2 * pc_constant[n] * exp_term * post_td[n] - l1_grad[n]
+    dpcc = post_td * pcact[:,None] * np.einsum('nji,nj->ni', inv_sigma, df)
+    outer = np.einsum('nj,nk->njk',df,df)
+    dpcs = 0.5 * (post_td * pcact[:,None])[:,:,None] * np.einsum('njl,njk,nik->nji',inv_sigma, outer, inv_sigma)
+    dpca = (post_td * pcact[:,None] * (2/pc_constant[:,None]) - l1_grad)[:,0]
+
+    grads = [dpcc, dpcs, dpca, dact, dcri]  # dpcc needs to be transposed back
     
-    grads = [dpcc, dpcs, dpca, dact, dcri]
-
     for p in range(len(params)):
         params[p] += etas[p] * grads[p]
-
+    
     for p in paramsindex:
         ns = np.random.normal(size=params[p].shape) * noise
         params[p] += ns
-
+    
     return params, grads, td
 
 
