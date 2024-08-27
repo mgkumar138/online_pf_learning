@@ -9,7 +9,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--episodes', type=int, required=False, help='episodes', default=3)
-parser.add_argument('--tmax', type=int, required=False, help='tmax', default=2)
+parser.add_argument('--tmax', type=int, required=False, help='tmax', default=3)
 
 parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[[0.5,0.5]])
 parser.add_argument('--rsz', type=float, required=False, help='rsz', default=0.05)
@@ -188,10 +188,6 @@ if savecsv:
         
 if savefig and seed == 0:
     f.savefig(figdir+exptname+'.svg')
-
-if savevar:
-    saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
-
 
 # %%
 if savegif:
