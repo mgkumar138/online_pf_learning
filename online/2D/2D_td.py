@@ -8,7 +8,7 @@ from copy import deepcopy
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=5000)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=10000)
 parser.add_argument('--tmax', type=int, required=False, help='tmax', default=300)
 
 parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[[0.5,0.5]])
@@ -78,7 +78,7 @@ balpha = args.balpha
 
 plot_figs= False
 savecsv = False
-savevar = False
+savevar = True
 savefig = False
 savegif = False
 
