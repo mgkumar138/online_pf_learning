@@ -8,7 +8,7 @@ import matplotlib.cm as cm
 import imageio
 from io import BytesIO
 from matplotlib.patches import Ellipse
-from model import predict_batch_placecell
+from model import predict_batch_placecell, softmax
 
 def get_statespace(num=51):
     x = np.linspace(-1,1,num)
@@ -352,10 +352,12 @@ def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rs
 
 
     ## high d at reward
-    plot_density(logparams,  [gap,total_trials//4, total_trials], ax=axs[1,1], goalsize=rsz)
+    dx = plot_density(logparams,  total_trials, ax=axs[1,1], goalsize=rsz)
 
-    plot_frequency(allcoords,  [gap,total_trials//4,total_trials], ax=axs[1,2], gap=gap, goalsize=rsz)
+    fx = plot_frequency(allcoords,  total_trials, ax=axs[1,2], gap=gap, goalsize=rsz)
 
+
+    #### done till here
 
     plot_fx_dx(allcoords, logparams, gap,'Before Learning', ax=axs[2,0], gap=gap)
 
@@ -525,23 +527,26 @@ def plot_rep_sim(xcor,trial, ax=None):
     ax.set_yticks(np.arange(1001)[idx], np.linspace(-1,1,1001)[idx])
     ax.set_title(f'T={trial}')
 
-def plot_value(logparams, trials, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ax=None):
+def plot_value(logparams, trial, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], goalsize=0.05, envsize=1, ax=None):
     if ax is None:
         f,ax = plt.subplots()
-    xs = np.linspace(-1,1,1001)
-    maxval  = 0 
-    for trial in trials:
-        pcacts = predict_batch_placecell(logparams[trial], xs)
-        value = pcacts @ logparams[trial][4] 
-        ax.plot(xs, value, label=f'T={trial}')
-        
-        maxval = max(maxval, np.max(value) * 1.1)
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel('Value v(x)')
-    ax.legend(frameon=False, fontsize=6)
-    ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval.item(), color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
+    num = 31
+    xs = get_statespace(num)
+    pcacts = predict_batch_placecell(logparams[trial], xs)
+    value = pcacts @ logparams[trial][4] 
+    im = ax.imshow(value.reshape(num,num), origin='lower')
+    plt.colorbar(im,ax=ax)
+
+    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+    start_grid = gaussian(xs, startcoord, goalsize).reshape(num, num)
+    ax.imshow(reward_grid, cmap='OrRd', origin='lower')
+    ax.imshow(start_grid, cmap='YlGn', origin='lower')
+    ax.set_xlabel('$x_1$')
+    ax.set_ylabel('$x_2$')
+    ax.set_xticks([],[])
+    ax.set_yticks([],[])
+
+
 
 def plot_field_area(logparams, trials,ax=None):
     if ax is None:
@@ -573,62 +578,73 @@ def plot_field_center(logparams, trials,ax=None):
 
 
 
-def plot_velocity(logparams, trials, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ax=None):
+def plot_velocity(logparams, trial, goalcoord=[0.5,0.5], startcoord=[-0.7,-0.75], goalsize=0.05, envsize=1, ax=None):
     if ax is None:
         f,ax = plt.subplots()
+    num=31
+    xs = get_statespace(num)
 
-    xs = np.linspace(-1,1,1001)
-    maxval  = 0 
-    for trial in trials:
-        pcacts = predict_batch_placecell(logparams[trial], xs)
-        actout = pcacts @ logparams[trial][3] 
-        aprob = softmax(2 * actout)
-        if logparams[0][3].shape[1] == 3:
-            vel = np.matmul(aprob, np.array([[-1], [1], [0]]))
-        else:
-            vel = np.matmul(aprob, np.array([[-1], [1]]))
-        vel = np.clip(vel, -1,1) * 0.1 
+    pcacts = predict_batch_placecell(logparams[trial], xs)
+    actout = pcacts @ logparams[trial][3] 
+    aprob = softmax(actout)
+    onehot2dirmat = np.array([
+    [0,1],  # up
+    [1,0],  # right
+    [0,-1],  # down
+    [-1,0]  # left
+    ])
+    vel = np.matmul(aprob, onehot2dirmat * 0.1)
+    xx, yy = np.meshgrid(np.arange(num), np.arange(num))
+    ax.quiver(xx.reshape(-1),yy.reshape(-1), vel[:,0], vel[:,1], color='k', scale_units='xy', zorder=2)
 
-        ax.plot(xs, vel, label=f'T={trial}')
-        maxval = max(maxval, np.max(vel) * 1.1)
-
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel(r'Velocity $\rho(x)$')
-    ax.legend(frameon=False, fontsize=6)
-    ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=0.1, color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
+    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+    start_grid = gaussian(xs, startcoord, goalsize).reshape(num, num)
+    ax.imshow(reward_grid, cmap='OrRd', origin='lower', zorder=2)
+    ax.imshow(start_grid, cmap='YlGn', origin='lower',zorder=2)
+    ax.set_xlabel('$x_1$')
+    ax.set_ylabel('$x_2$')
+    ax.set_xticks([],[])
+    ax.set_yticks([],[])
     
 
-def plot_pc(logparams, trial,title='', ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
+def plot_pc(logparams, trial,pi=None, title='', ax=None, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], goalsize=0.05, envsize=1, ):
     num = 31
     xs = get_statespace(num)
     pcacts = predict_batch_placecell(logparams[trial], xs)
 
-    gaussian_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+    start_grid = gaussian(xs, startcoord, goalsize).reshape(num, num)
 
     num_curves = pcacts.shape[1]
     yidx = xidx = int(num_curves**0.5)
     if ax is None:
-        f,ax = plt.subplots(yidx, xidx, figsize=(12,12))
+        f,axs = plt.subplots(yidx, xidx, figsize=(12,12))
+        pcidx = np.arange(num_curves)
+        axs = axs.flatten()
+    else:
+        if pi is None:
+            pcidx = [num_curves//2]
+        else:
+            pcidx = [pi]
+        ax.set_xlabel('$x_1$')
+        ax.set_ylabel('$x_2$')
     
-    ax[-1,xidx//2].set_xlabel('x')
-    ax[yidx//2, 0].set_ylabel('$\phi(x)$')
-    
-    ax = ax.flatten()
-    for i in range(num_curves):
-        ax[i].imshow(pcacts[:, i].reshape(num, num), origin='lower')
-        ax[i].imshow(gaussian_grid, cmap='OrRd', origin='lower')
+    for i in pcidx:
+        if len(pcidx)>1:
+            ax = axs[i]
+        ax.imshow(pcacts[:, i].reshape(num, num), origin='lower')
+        ax.imshow(reward_grid, cmap='OrRd', origin='lower')
+        ax.imshow(start_grid, cmap='YlGn', origin='lower')
 
-        ax[i].set_xticks([],[])
-        ax[i].set_yticks([],[])
+        ax.set_xticks([],[])
+        ax.set_yticks([],[])
         max_value = np.max(pcacts[:, i])
-        ax[i].text(1.0, 0.0, f'{max_value:.2f}', transform=ax[i].transAxes,
-                fontsize=6, color='red', ha='right')
+        ax.text(1.0, 0.0, f'{i+1}-{max_value:.2f}', transform=ax.transAxes,
+                fontsize=6, color='yellow', ha='right')
 
-    f.suptitle(title)
-    # plt.legend(frameon=False, fontsize=6)
-    f.tight_layout()
+    if ax is None:
+        f.suptitle(title)
+        f.tight_layout()
 
 def plot_com(logparams,goalcoords,stable_perf, ax=None):
     if ax is None:
@@ -646,58 +662,64 @@ def plot_com(logparams,goalcoords,stable_perf, ax=None):
     ax.set_xlabel('Before')
     ax.set_ylabel('After')
 
-def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
+def plot_density(logparams, trial, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, ):
     if ax is None:
         f,ax = plt.subplots()
-    maxval  = 0 
-    xs = np.linspace(-1,1,1001)
 
-    for trial in trials:
-        pcacts = predict_batch_placecell(logparams[trial], xs)
-        dx = np.sum(pcacts,axis=1)
-        ax.plot(xs, dx, label=f'T={trial}')
-        maxval = max(maxval, np.max(dx) * 1.1)
+    num = 15
+    xs = get_statespace(num)
+    pcacts = predict_batch_placecell(logparams[trial], xs)
+    dx = np.sum(pcacts,axis=1)
+    im = ax.imshow(dx.reshape(num,num), origin='lower')
+    plt.colorbar(im,ax=ax)
+    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
+    start_grid = gaussian(xs, startcoord, goalsize).reshape(num, num)
+    ax.imshow(reward_grid, cmap='OrRd', origin='lower', zorder=2)
+    ax.imshow(start_grid, cmap='YlGn', origin='lower',zorder=2)
+    ax.set_xlabel('$x_1$')
+    ax.set_ylabel('$x_2$')
+    ax.set_xticks([],[])
+    ax.set_yticks([],[])
+    return dx.reshape(num,num)
 
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel('Density $d(x)$')
-    ax.legend(frameon=False, fontsize=6)
-
-    ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
-
-
-def plot_frequency(allcoords, trials,ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, gap=25, bins=15):
+def plot_frequency(allcoords, trial, gap=20, bins=15, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], goalsize=0.05, ax=None):
     if ax is None:
         f,ax = plt.subplots()
-    maxval  = 0 
-    bins = np.linspace(-1,1,bins)
 
-    for trial in trials:
-        fx = []
-        xx = []
-        for g in range(gap):
+    coord = []
+    for t in range(gap):
+        for c in allcoords[trial-t-1]:
+            coord.append(c)
+    coord = np.array(coord)
 
-            f, x = np.histogram(allcoords[trial-g-1], bins=bins)
-            x = x[:-1] + (x[1] - x[0]) / 2
-            fx.append(f)
-            xx.append(x)
+    x = np.linspace(-1,1,bins+1)
+    xx,yy = np.meshgrid(x,x)
+    x = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    coord = np.concatenate([coord, x],axis=0)
 
-        fx = np.array(fx)
-        xx = np.array(xx)
-        xx = np.mean(xx, axis=0)
-        fx = np.mean(fx, axis=0)
+    hist, x_edges, y_edges = np.histogram2d(coord[:, 0], coord[:, 1], bins=[bins, bins])
 
-        ax.plot(xx, fx, label=f'T={trial-gap}-{trial}')
-        maxval = max(maxval, np.max(fx) * 1.1)
+    xs = x_edges[:-1] + (x_edges[1] - x_edges[0])/2 
+    ys = y_edges[:-1] + (y_edges[1] - y_edges[0])/2 
 
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel('Freqency $f(x)$')
-    ax.legend(frameon=False, fontsize=6)
+    xx,yy = np.meshgrid(xs,ys)
+    visits = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    freq = hist.reshape(-1)
 
-    ax.fill_betweenx(np.linspace(0,maxval), goalcoord[0]-goalsize, goalcoord[0]+goalsize, color='r', alpha=0.25, label='Target')
-    ax.axvline(startcoord[0],ymin=0, ymax=maxval, color='g',linestyle='--',label='Start', linewidth=2)
-    ax.hlines(xmin=-envsize,xmax=envsize, y=0, colors='k')
+    im = ax.imshow(freq.reshape(bins,bins), origin='lower')
+    plt.colorbar(im, ax=ax)
+
+
+    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(bins, bins)
+    start_grid = gaussian(xs, startcoord, goalsize).reshape(bins, bins)
+    ax.imshow(reward_grid, cmap='OrRd', origin='lower', zorder=2)
+    ax.imshow(start_grid, cmap='YlGn', origin='lower',zorder=2)
+    ax.set_xlabel('$x_1$')
+    ax.set_ylabel('$x_2$')
+    ax.set_xticks([],[])
+    ax.set_yticks([],[])
+
+    return freq.reshape(bins,bins)
 
 
 def reward_func(xs,goal, rsz, threshold=1e-2):
