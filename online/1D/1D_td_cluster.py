@@ -81,8 +81,8 @@ beta = args.beta
 
 
 plot_figs= False
-savecsv = False
-savevar = True
+savecsv = True
+savevar = False
 savefig = False
 savegif = False
 
@@ -167,14 +167,14 @@ for goalcoord in goalcoords:
 
 #%%
 
-trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,10, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
+trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,3, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
 
 # stable_perf = train_episodes//4
 # var_pv,var_rc, var_gr, var_lat = compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001)
 
 if savecsv:
     if args.analysis == 'dx':
-        store_csv('./csvs/dx_'+args.csvname+'.csv', args, ['latencys','cumr','trials','dx', 'delta_dxr'], [latencys, cum_rewards, trials, dx, delta_dxr])
+        store_csv('./csvs/dx_'+args.csvname+'.csv', args, ['latencys','cumr','dx', 'delta_dxr'], [latencys[-1], cum_rewards[-1], dx, delta_dxr])
 
     elif args.analysis == 'drift':
         store_csv('./csvs/drift_'+args.csvname+'.csv', args, ['var_pv', 'var_rc', 'var_gr', 'var_lat'], [var_pv,var_rc, var_gr, var_lat])

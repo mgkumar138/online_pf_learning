@@ -1,3 +1,0 @@
-episodes,tmax,goalcoords,rsz,rmax,seed,pcinit,npc,alpha,sigma,plr,clr,llr,alr,slr,gamma,nact,balpha,paramsindex,noise,analysis,datadir,figdir,csvname,var_pv,var_rc,var_gr,var_lat
-100000,100,[0.5],0.05,5,2020,uni,128,1.0,0.05,0.01,0.01,0.0001,0.0001,0.0001,0.9,2,0.0,[3],0.0,drift,./data/,/Users/mganeshkumar/Library/Jupyter/runtime/kernel-v2-11757ygntpMgqqTlO.json,results,0.002441542171229332,0.001170217121539166,0.03171342039597106,0.08930867787663141
-100000,100,[0.5],0.05,5,2020,uni,128,1.0,0.05,0.01,0.01,0.0001,0.0001,0.0001,0.9,2,0.0,[3],0.0001,drift,./data/,/Users/mganeshkumar/Library/Jupyter/runtime/kernel-v2-11757H8Ftva61doc0.json,results,0.003453904713253225,0.0014899410313029566,0.3186157275231908,0.08930867787663141
