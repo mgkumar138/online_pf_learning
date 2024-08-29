@@ -8,13 +8,23 @@ import matplotlib.cm as cm
 
 
 # main agent description
-def uniform_2D_pc_weights(npc, nact,seed=0,sigma=0.1, alpha=1,envsize=1):
+def uniform_2D_pc_weights_(npc, nact,seed=0,sigma=0.1, alpha=1,envsize=1):
     x = np.linspace(-envsize,envsize,int(npc**0.5))
     xx,yy = np.meshgrid(x,x)
     pc_cent = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
     pc_sigma = np.tile(np.eye(2),(npc,1,1))*sigma
     pc_constant = np.ones(npc) * alpha
     return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
+    1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
+
+def uniform_2D_pc_weights(npc, nact,seed=0,sigma=0.1, alpha=1,envsize=1):
+    x = np.linspace(-envsize,envsize,int(npc**0.5))
+    xx,yy = np.meshgrid(x,x)
+    pc_cent = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    inv_sigma = np.linalg.inv(np.tile(np.eye(2),(npc,1,1))*sigma)
+    # pc_sigma = np.tile(np.ones([2,2]),(npc,1,1))*sigma
+    pc_constant = np.ones(npc) * alpha
+    return [np.array(pc_cent), np.array(inv_sigma), np.array(pc_constant), 
     1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
 
 def random_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
@@ -29,8 +39,14 @@ def random_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
     return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
     1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
 
-
 def predict_placecell(params, x):
+    pc_centers, inv_sigma, pc_constant, actor_weights, critic_weights = params
+    diff = x - pc_centers  # Shape: (npc, dim)
+    exponent = np.einsum('ni,nij,nj->n', diff, inv_sigma, diff)
+    pcacts = np.exp(-0.5 * exponent) * pc_constant**2
+    return pcacts
+
+def predict_placecell_(params, x):
     pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
     diff = x - pc_centers  # Shape: (npc, dim)
     inv_sigma = np.linalg.inv(pc_sigmas)  # Shape: (npc, dim, dim)
@@ -67,8 +83,49 @@ def get_onehot_action(prob, nact=4):
     onehotg[A] = 1
     return onehotg
 
-
 def learn(params, reward, newstate, state, onehotg, aprob, gamma, etas, balpha=0.0, noise=0.0, paramsindex=[], beta=1):
+    pc_centers, inv_sigma, pc_constant, actor_weights, critic_weights = params
+    
+    # Predict place cell activations
+    pcact = predict_placecell(params, state)
+    newpcact = predict_placecell(params, newstate)
+    
+    # Predict values
+    value = np.dot(pcact, critic_weights)
+    newvalue = np.dot(newpcact, critic_weights)
+    td = reward + gamma * newvalue - value
+
+    l1_grad = balpha * np.sign(pc_constant)
+    
+    # Critic grads
+    dcri = pcact[:, None] * td
+    
+    # Actor grads
+    decay = beta * (onehotg[:, None] - aprob[:, None])
+    dact = np.dot(pcact[:, None], decay.T) * td
+    
+    # Grads for field parameters
+    post_td = (actor_weights @ decay + critic_weights) * td
+
+    df = state - pc_centers
+
+    dpcc = post_td * pcact[:,None] * np.einsum('nji,nj->ni', inv_sigma, df)
+    outer = np.einsum('nj,nk->njk',df,df)
+    dpcs = -0.5 * (post_td * pcact[:,None])[:,:,None] * outer
+    dpca = (post_td * pcact[:,None] * (2/pc_constant[:,None]) - l1_grad)[:,0]
+
+    grads = [dpcc, dpcs, dpca, dact, dcri]  # dpcc needs to be transposed back
+    
+    for p in range(len(params)):
+        params[p] += etas[p] * grads[p]
+    
+    for p in paramsindex:
+        ns = np.random.normal(size=params[p].shape) * noise
+        params[p] += ns
+    
+    return params, grads, td
+
+def learn_(params, reward, newstate, state, onehotg, aprob, gamma, etas, balpha=0.0, noise=0.0, paramsindex=[], beta=1):
     pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
     
     # Predict place cell activations

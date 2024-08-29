@@ -257,7 +257,7 @@ def plot_fxdx_trials(allcoords, logparams, trials,gap, ax=None):
     
     Rs = []
     for trial in trials:
-        visits, frequency, density, R, pval = get_1D_freq_density_corr(allcoords, logparams, trial, gap=gap)
+        visits, frequency, density, R, pval = get_2D_freq_density_corr(allcoords, logparams, trial, gap=gap)
         Rs.append(R)
     ax.plot(trials, Rs, marker='o')
     slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(trials).reshape(-1), np.array(Rs).reshape(-1))
@@ -266,7 +266,7 @@ def plot_fxdx_trials(allcoords, logparams, trials,gap, ax=None):
     ax.legend(frameon=False, fontsize=6)
     ax.set_title('Correlation with learning')
     ax.set_xlabel('Trial')
-    ax.set_ylabel('Correlation')
+    ax.set_ylabel('R')
 
 
 def plot_fx_dx(allcoords, logparams, trial, title,gap,ax=None):
@@ -344,10 +344,10 @@ def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rs
     plot_pc(logparams, total_trials,ax=axs[0,2], title='After Learning', goalsize=rsz)
 
 
-    plot_value(logparams, [gap,total_trials//4, total_trials], ax=axs[3,0], goalsize=rsz)
+    plot_value(logparams, total_trials, ax=axs[3,0], goalsize=rsz)
 
 
-    plot_velocity(logparams,  [gap,total_trials//4,total_trials],ax=axs[1,0], goalsize=rsz)
+    plot_velocity(logparams,  total_trials,ax=axs[1,0], goalsize=rsz)
 
 
 
@@ -356,24 +356,18 @@ def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rs
 
     fx = plot_frequency(allcoords,  total_trials, ax=axs[1,2], gap=gap, goalsize=rsz)
 
-
-    #### done till here
-
-    plot_fx_dx(allcoords, logparams, gap,'Before Learning', ax=axs[2,0], gap=gap)
-
-    plot_fx_dx(allcoords, logparams, total_trials,'After Learning', ax=axs[2,1], gap=gap)
-
-    plot_fxdx_trials(allcoords, logparams, np.linspace(gap, total_trials,dtype=int, num=31), ax=axs[2,2], gap=gap)
+    plot_fxdx_trials(allcoords, logparams, np.linspace(gap, total_trials,dtype=int, num=21), ax=axs[2,2], gap=gap)
 
     # change in field area
-    plot_field_area(logparams, np.linspace(0, total_trials, num=51, dtype=int), ax=axs[3,1])
+    plot_field_area(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,1])
 
     # change in field location
-    plot_field_center(logparams, np.linspace(0, total_trials, num=51, dtype=int), ax=axs[3,2])
+    plot_field_center(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,2])
 
+    ### done till here
 
     ## drift
-    trials, pv_corr,rep_corr, startxcor, endxcor = get_pvcorr(logparams, stable_perf, total_trials, num=1001)
+    trials, pv_corr,rep_corr, startxcor, endxcor = get_pvcorr(logparams, stable_perf, total_trials, num=101)
 
     plot_rep_sim(startxcor, stable_perf, ax=axs[4,0])
 
@@ -390,17 +384,17 @@ def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rs
 
     # plot_policy(logparams,ax=axs[6,0])
 
-    plot_com(logparams,[0.75,0.0],total_trials//2-1, ax=axs[6,0])
+    # plot_reward_coding(logparams,[0.75,0.0],total_trials//2-1, ax=axs[6,0])
 
     # dlambda = np.mean(np.std(param_delta[0][stable_perf:],axis=0))
     # dalpha= np.mean(np.std(param_delta[2][stable_perf:],axis=0))
 
-    plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=0.1,ax=axs[6,2])
+    # plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=0.1,ax=axs[6,2])
 
     # for trial in np.linspace(0,total_trials, num=3, dtype=int):
     #     axs[6,1].hist(logparams[trial][2],alpha=0.25, label=f'T={trial+1}')
 
-    plot_amplitude_drift(logparams, total_trials, stable_perf, ax=axs[6,1])
+    # plot_amplitude_drift(logparams, total_trials, stable_perf, ax=axs[6,1])
 
     f.text(0.001,0.001, exptname, fontsize=5)
     f.tight_layout()
@@ -551,9 +545,11 @@ def plot_value(logparams, trial, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], 
 def plot_field_area(logparams, trials,ax=None):
     if ax is None:
         f,ax = plt.subplots()
+    num = 31
+    xs = get_statespace(num)
     areas = []
     for trial in trials:
-        area = np.trapz(predict_batch_placecell(logparams[trial], np.linspace(-1,1,1001)),axis=0)
+        area = np.trapz(predict_batch_placecell(logparams[trial], xs),axis=0)
         areas.append(area)
     areas = np.array(areas)
     norm_area = areas/areas[0]
@@ -570,7 +566,7 @@ def plot_field_center(logparams, trials,ax=None):
     for trial in trials:
         lambdas.append(logparams[trial][0])
     lambdas = np.array(lambdas)
-    norm_lambdas = lambdas-lambdas[0]
+    norm_lambdas = np.linalg.norm(lambdas-lambdas[0],ord=2, axis=2)
     ax.errorbar(trials, np.mean(norm_lambdas,axis=1), np.std(norm_lambdas,axis=1)/np.sqrt(len(logparams[0][0])), marker='o')
     ax.set_ylabel('Centered Field Center')
     ax.set_xlabel('Trial')
@@ -646,7 +642,7 @@ def plot_pc(logparams, trial,pi=None, title='', ax=None, goalcoord=[0.5,0.5], st
         f.suptitle(title)
         f.tight_layout()
 
-def plot_com(logparams,goalcoords,stable_perf, ax=None):
+def plot_reward_coding(logparams,goalcoords,stable_perf, ax=None):
     if ax is None:
         f,ax = plt.subplots()
     x = logparams[stable_perf][0]
@@ -670,6 +666,7 @@ def plot_density(logparams, trial, ax=None, goalcoord=[0.5], startcoord=[-0.75],
     xs = get_statespace(num)
     pcacts = predict_batch_placecell(logparams[trial], xs)
     dx = np.sum(pcacts,axis=1)
+
     im = ax.imshow(dx.reshape(num,num), origin='lower')
     plt.colorbar(im,ax=ax)
     reward_grid = gaussian(xs, goalcoord, goalsize).reshape(num, num)
@@ -680,6 +677,7 @@ def plot_density(logparams, trial, ax=None, goalcoord=[0.5], startcoord=[-0.75],
     ax.set_ylabel('$x_2$')
     ax.set_xticks([],[])
     ax.set_yticks([],[])
+    ax.set_title('Density')
     return dx.reshape(num,num)
 
 def plot_frequency(allcoords, trial, gap=20, bins=15, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], goalsize=0.05, ax=None):
@@ -710,14 +708,15 @@ def plot_frequency(allcoords, trial, gap=20, bins=15, goalcoord=[0.5,0.5], start
     plt.colorbar(im, ax=ax)
 
 
-    reward_grid = gaussian(xs, goalcoord, goalsize).reshape(bins, bins)
-    start_grid = gaussian(xs, startcoord, goalsize).reshape(bins, bins)
+    reward_grid = gaussian(visits, goalcoord, goalsize).reshape(bins, bins)
+    start_grid = gaussian(visits, startcoord, goalsize).reshape(bins, bins)
     ax.imshow(reward_grid, cmap='OrRd', origin='lower', zorder=2)
     ax.imshow(start_grid, cmap='YlGn', origin='lower',zorder=2)
     ax.set_xlabel('$x_1$')
     ax.set_ylabel('$x_2$')
     ax.set_xticks([],[])
     ax.set_yticks([],[])
+    ax.set_title('Frequency')
 
     return freq.reshape(bins,bins)
 
@@ -752,8 +751,37 @@ def saveload(filename, variable, opt):
             return pickle.load(file)
     
 
+def get_2D_freq_density_corr(allcoords, logparams, end, gap=20, bins=10):
+    coord = []
+    for t in range(gap):
+        for c in allcoords[end-t-1]:
+            coord.append(c)
+    coord = np.array(coord)
+
+    x = np.linspace(-1,1,bins+1)
+    xx,yy = np.meshgrid(x,x)
+    x = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    coord = np.concatenate([coord, x],axis=0)
+
+    hist, x_edges, y_edges = np.histogram2d(coord[:, 0], coord[:, 1], bins=[bins, bins])
+
+    xs = x_edges[:-1] + (x_edges[1] - x_edges[0])/2 
+    ys = y_edges[:-1] + (y_edges[1] - y_edges[0])/2 
+
+    xx,yy = np.meshgrid(xs,ys)
+    visits = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
+    freq = hist.reshape(-1)
+
+    param = logparams[end-1]
+    pcacts = predict_batch_placecell(param, visits)
+    dxs = np.sum(pcacts,axis=1)
+
+    R,pval = stats.pearsonr(freq.reshape(-1), dxs.reshape(-1))
+    return visits, freq, dxs, R, pval
+
 def get_pvcorr(params, start, end, num):
-    xs = np.linspace(-1,1,1001)
+
+    xs = get_statespace(31)
     startpcs = predict_batch_placecell(params[start], xs)
     startvec = startpcs.flatten()
     trials = np.linspace(start, end-1, num, dtype=int)

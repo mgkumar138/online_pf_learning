@@ -45,26 +45,20 @@ def uniform_2D_pc_weights(npc, nact,seed=0,sigma=0.1, alpha=1,envsize=1):
     x = np.linspace(-envsize,envsize,int(npc**0.5))
     xx,yy = np.meshgrid(x,x)
     pc_cent = np.concatenate([xx.reshape(-1)[:,None],yy.reshape(-1)[:,None]],axis=1)
-    pc_sigma = np.tile(np.eye(2),(npc,1,1))*sigma
+    inv_sigma = np.linalg.inv(np.tile(np.eye(2),(npc,1,1))*sigma)
     # pc_sigma = np.tile(np.ones([2,2]),(npc,1,1))*sigma
     pc_constant = np.ones(npc) * alpha
     actor_key, critic_key = random.split(random.PRNGKey(seed), num=2)
-    return [jnp.array(pc_cent), jnp.array(pc_sigma), jnp.array(pc_constant), 
+    return [jnp.array(pc_cent), jnp.array(inv_sigma), jnp.array(pc_constant), 
             1e-5 * random.normal(actor_key, (npc,nact)), 1e-5 * random.normal(critic_key, (npc,1))]
 
 
 def predict_placecell(params, x):
-    pc_centers, pc_sigmas, pc_constant, actor_weights, critic_weights = params
-    npcs = params[0].shape[0]
-    pcacts = []
-    for n in range(npcs):
-        diff = (x[:, None] - pc_centers[n][:, None])
-        diff = diff.T @ diff  # 'diff' is now `2x2` matrix for the `jnp.linalg.solve` call
-        inv_sigma_diff = jnp.linalg.solve(pc_sigmas[n], diff)
-        exponent = jnp.trace(inv_sigma_diff)
-        pcact = jnp.exp(-0.5 * exponent) * pc_constant[n] ** 2
-        pcacts.append(pcact)
-    return jnp.vstack(pcacts)[:, 0]
+    pc_centers, inv_sigma, pc_constant, actor_weights, critic_weights = params
+    diff = x - pc_centers  # Shape: (npc, dim)
+    exponent = jnp.einsum('ni,nij,nj->n', diff, inv_sigma, diff)
+    pcacts = jnp.exp(-0.5 * exponent) * pc_constant**2
+    return pcacts
 
 
 

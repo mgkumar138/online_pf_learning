@@ -8,7 +8,7 @@ from copy import deepcopy
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=2000)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=5000)
 parser.add_argument('--tmax', type=int, required=False, help='tmax', default=300)
 
 parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[[0.5,0.5]])
@@ -17,15 +17,15 @@ parser.add_argument('--rmax', type=int, required=False, help='rmax', default=5)
 
 parser.add_argument('--seed', type=int, required=False, help='seed', default=2020)
 parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default='uni')
-parser.add_argument('--npc', type=int, required=False, help='npc', default=8**2)
+parser.add_argument('--npc', type=int, required=False, help='npc', default=3**2)
 parser.add_argument('--alpha', type=float, required=False, help='alpha', default=0.5)
-parser.add_argument('--sigma', type=float, required=False, help='sigma', default=0.1)
+parser.add_argument('--sigma', type=float, required=False, help='sigma', default=0.05)
 
 parser.add_argument('--plr', type=float, required=False, help='plr', default=0.01)
 parser.add_argument('--clr', type=float, required=False, help='clr', default=0.01)
 parser.add_argument('--llr', type=float, required=False, help='llr', default=0.0001) 
 parser.add_argument('--alr', type=float, required=False, help='alr', default=0.0001) 
-parser.add_argument('--slr', type=float, required=False, help='slr', default=0.0001)
+parser.add_argument('--slr', type=float, required=False, help='slr', default=0.01)
 parser.add_argument('--gamma', type=float, required=False, help='gamma', default=0.9)
 parser.add_argument('--nact', type=int, required=False, help='nact', default=4)
 parser.add_argument('--beta', type=float, required=False, help='beta', default=1)
@@ -94,7 +94,8 @@ elif pcinit == 'rand':
         params = random_pc_weights(npc, nact, seed, sigma=sigma, alpha=alpha, envsize=envsize)
 
 initparams = deepcopy(params)
-initpcacts = plot_place_cells(initparams, startcoord=startcoord, goalcoord=goalcoords[0],goalsize=goalsize, title='Fields before learning',envsize=envsize)
+# initpcacts = plot_place_cells(initparams, startcoord=startcoord, goalcoord=goalcoords[0],goalsize=goalsize, title='Fields before learning',envsize=envsize)
+plot_pc([initparams],0)
 
 # inner loop training loop
 def run_trial(params, env, trial):
@@ -157,16 +158,21 @@ for goalcoord in goalcoords:
         losses.append(tds)
         cum_rewards.append(np.sum(discount_rewards))
 
-        print(f'Goal {goalcoords}, Trial {episode+1}, G {np.sum(discount_rewards):.3f}, t {latency}, L {tds:.3f}, a {np.linalg.norm(params[2],ord=1):.3f}, s {np.mean(params[1],axis=0)[1,0]:.1f}')
+        print(f'Goal {goalcoords}, Trial {episode+1}, G {np.sum(discount_rewards):.3f}, t {latency}, L {tds:.3f}, a {np.linalg.norm(params[2],ord=1):.3f}, s {np.sum(params[1],axis=0)[0,1]}')
 
 
 if savevar:
     saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
 
 #%%
+# load_expt = "./data/data/2D_td_online_0.0ba_0.0ns_0p_16n_0.01plr_0.01clr_0.0001llr_0.0001alr_0.0001slr_uni_4a_0s_50000e_5rmax_0.05rsz"
+# [logparams, latencys,cum_rewards, allcoords] = saveload(load_expt, 1, 'load')
+
+#%%
 env.plot_trajectory()
 
-pcacts = plot_place_cells(params, startcoord=startcoord, goalcoord=goalcoords[0],goalsize=goalsize, title='Fields before learning',envsize=envsize)
+# pcacts = plot_place_cells(params, startcoord=startcoord, goalcoord=goalcoords[0],goalsize=goalsize, title='Fields before learning',envsize=envsize)
+plot_pc([params],0)
 
 stable_perf = train_episodes//2
 f,score, drift = plot_analysis(logparams, latencys, allcoords, stable_perf, exptname=exptname, rsz=goalsize)
@@ -192,5 +198,3 @@ if savefig and seed == 0:
 # %%
 if savegif:
     plot_gif(logparams, gif_name=f'{noise}ns_{piname}p_{balpha}ba_{pcinit}pc.gif', num_frames=250, duration=10)
-
-

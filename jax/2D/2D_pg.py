@@ -3,14 +3,12 @@
 import os
 os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.2"
 import jax.numpy as jnp
-from jax import grad, jit, vmap, random, nn, lax
 import matplotlib.pyplot as plt
 from backend import *
 import numpy as np
-import time
 
 # inner loop
-train_episodes = 10
+train_episodes = 1000
 tmax = 300
 
 actor_eta = 0.01
@@ -23,13 +21,13 @@ etas = [pc_eta, sigma_eta,constant_eta, actor_eta,critic_eta]
 
 gamma = 0.95
 goalsize = 0.05
-startcoord = [[-0.8,-0.8],[-0.8,0.8], [0,-0.8], [0,0.8]]
-goalcoord = [0.8,0.8]
+startcoord = [[-0.75,-0.75]]
+goalcoord = [0.5,0.5]
 seed = 2021
 obstacles = False
 
 # outer loop
-npc = 13**2
+npc = 8**2
 sigma = 0.1
 alpha = 0.5
 nact = 4
@@ -43,7 +41,10 @@ params = uniform_2D_pc_weights(npc, nact, seed, sigma=sigma,alpha=alpha)
 initparams = params.copy()
 
 print(params[1])
+# print(jnp.linalg.det(params[1]))
+# print(jnp.linalg.inv(params[1])[0])
 
+#%%
 # plot_place_cells(initparams, num=np.arange(npc), title='Fields before training',goalcoord=goalcoord, obstacles=obstacles, goalsize=goalsize)
 # plot_2D_density(initparams, title='Fields before training')
 
@@ -95,7 +96,7 @@ for episode in range(train_episodes):
     logparams.append(params)
     latencys.append(latency)
 
-    print(f'Trial {episode+1}, G {np.sum(discount_rewards)}, t {latency}')
+    print(f'Trial {episode+1}, G {np.sum(discount_rewards)}, t {latency}, s {params[1][3]}')
 
 env.plot_trajectory()
 
