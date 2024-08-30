@@ -8,7 +8,7 @@ from copy import deepcopy
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--episodes', type=int, required=False, help='episodes', default=50000)
+parser.add_argument('--episodes', type=int, required=False, help='episodes', default=10000)
 parser.add_argument('--tmax', type=int, required=False, help='tmax', default=300)
 
 parser.add_argument('--goalcoords', type=float,nargs='+', required=False, help='goalcoords', default=[[0.5,0.5]])
@@ -17,15 +17,15 @@ parser.add_argument('--rmax', type=int, required=False, help='rmax', default=5)
 
 parser.add_argument('--seed', type=int, required=False, help='seed', default=2020)
 parser.add_argument('--pcinit', type=str, required=False, help='pcinit', default='uni')
-parser.add_argument('--npc', type=int, required=False, help='npc', default=4)
+parser.add_argument('--npc', type=int, required=False, help='npc', default=16)
 parser.add_argument('--alpha', type=float, required=False, help='alpha', default=0.5)
 parser.add_argument('--sigma', type=float, required=False, help='sigma', default=0.05)
 
 parser.add_argument('--plr', type=float, required=False, help='plr', default=0.01)
 parser.add_argument('--clr', type=float, required=False, help='clr', default=0.01)
-parser.add_argument('--llr', type=float, required=False, help='llr', default=0.0001) 
-parser.add_argument('--alr', type=float, required=False, help='alr', default=0.0001) 
-parser.add_argument('--slr', type=float, required=False, help='slr', default=0.0001)
+parser.add_argument('--llr', type=float, required=False, help='llr', default=0.00) 
+parser.add_argument('--alr', type=float, required=False, help='alr', default=0.00) 
+parser.add_argument('--slr', type=float, required=False, help='slr', default=0.001)
 parser.add_argument('--gamma', type=float, required=False, help='gamma', default=0.9)
 parser.add_argument('--nact', type=int, required=False, help='nact', default=4)
 parser.add_argument('--beta', type=float, required=False, help='beta', default=1)
@@ -78,7 +78,7 @@ balpha = args.balpha
 
 plot_figs= False
 savecsv = False
-savevar = True
+savevar = False
 savefig = False
 savegif = False
 

@@ -10,6 +10,70 @@ from io import BytesIO
 from matplotlib.patches import Ellipse
 from model import predict_batch_placecell, softmax
 
+
+def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rsz=0.025):
+    f, axs = plt.subplots(7,3,figsize=(12,21))
+    total_trials = len(latencys)
+    gap = 25
+
+    #latency 
+    score = plot_latency(latencys, ax=axs[0,0])
+
+    plot_pc(logparams, 0,ax=axs[0,1], title='Before Learning', goalsize=rsz)
+
+    plot_pc(logparams, total_trials,ax=axs[0,2], title='After Learning', goalsize=rsz)
+
+
+    plot_value(logparams, total_trials, ax=axs[3,0], goalsize=rsz)
+
+
+    plot_velocity(logparams,  total_trials,ax=axs[1,0], goalsize=rsz)
+
+
+
+    ## high d at reward
+    dx = plot_density(logparams,  total_trials, ax=axs[1,1], goalsize=rsz)
+
+    fx = plot_frequency(allcoords,  total_trials, ax=axs[1,2], gap=gap, goalsize=rsz)
+
+    plot_fx_dx(allcoords, logparams, trial=gap, title='Before',gap=gap,ax=axs[2,0])
+    
+    plot_fx_dx(allcoords, logparams, trial=total_trials, title='After',gap=gap,ax=axs[2,1])
+
+    plot_fxdx_trials(allcoords, logparams, np.linspace(gap, total_trials,dtype=int, num=21), ax=axs[2,2], gap=gap)
+
+    # change in field area
+    plot_field_area(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,1])
+
+    # change in field location
+    plot_field_center(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,2])
+
+    ## drift
+    trials, pv_corr,rep_corr, startxcor, endxcor = get_pvcorr(logparams, stable_perf, total_trials, num=101)
+
+    plot_rep_sim(startxcor, stable_perf, ax=axs[5,0])
+
+    plot_rep_sim(endxcor, total_trials, ax=axs[5,1])
+    
+    drift = (np.std(pv_corr))/(np.std(np.array(latencys)[np.linspace(stable_perf, total_trials-1, num=1001, dtype=int)]))
+
+    plot_pv_rep_corr(trials, pv_corr, rep_corr,title=f"D={drift:.3f}",ax=axs[5,2])
+
+    param_delta = get_param_changes(logparams, total_trials)
+    plot_param_variance(param_delta, total_trials, stable_perf,axs=axs[4], num=5)
+
+    plot_l1norm(param_delta[2], ax=axs[6,2], stable_perf=0)
+
+    # plot_reward_coding(logparams,[0.75,0.0],total_trials//2-1, ax=axs[6,0])
+
+    plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=0.5**2,ax=axs[6,1])
+
+    plot_amplitude_drift(logparams, total_trials, stable_perf, ax=axs[6,0])
+
+    f.text(0.001,0.001, exptname, fontsize=5)
+    f.tight_layout()
+    return f, score, drift
+
 def get_statespace(num=51):
     x = np.linspace(-1,1,num)
     xx,yy = np.meshgrid(x,x)
@@ -153,103 +217,6 @@ def plot_model_fit(x, y, func_type):
     plt.legend(frameon=False, fontsize=6)
     plt.show()
 
-def get_1D_fva_density_corr(allcoords, logparams, end, gap=25, bins=15, delta_t=1, end2=None):
-    bins = np.linspace(-1, 1, bins)
-    fx = []
-    dx = []
-    xs = []
-    vx = []
-    ax = []
-    for g in range(gap-1):
-        coord = allcoords[end-1-g].flatten()
-        velocity = (coord[1:] - coord[:-1]) / delta_t
-        coord = coord[:-1]  # Exclude the last coordinate because it doesn't have a corresponding velocity
-        acceleration = (velocity[1:] - velocity[:-1]) / delta_t
-        velocity = velocity[:-1]  # Exclude the last velocity because it doesn't have a corresponding acceleration
-        coord = coord[:-1]  # Exclude the last coordinate because it doesn't have a corresponding acceleration
-
-        frequency, x = np.histogram(coord, bins=bins)
-        visits = x[:-1] + (x[1] - x[0]) / 2
-
-        if end2 is None:
-            end2 = end
-
-        param = logparams[end2-1-g]
-        pcacts = predict_batch_placecell(param, visits)
-        density = np.sum(pcacts, axis=1)
-        
-        # Bin the velocities and accelerations
-        bin_indices = np.digitize(coord, bins) - 1
-        sum_velocity = np.zeros(len(bins) - 1)
-        sum_acceleration = np.zeros(len(bins) - 1)
-        counts = np.zeros(len(bins) - 1)
-
-        for i in range(len(velocity)):
-            if 0 <= bin_indices[i] < len(sum_velocity):
-                sum_velocity[bin_indices[i]] += velocity[i]
-                sum_acceleration[bin_indices[i]] += acceleration[i]
-                counts[bin_indices[i]] += 1
-
-        avg_velocity = np.zeros(len(sum_velocity))
-        avg_acceleration = np.zeros(len(sum_acceleration))
-        nonzero_bins = counts != 0
-        avg_velocity[nonzero_bins] = sum_velocity[nonzero_bins] / counts[nonzero_bins]
-        avg_acceleration[nonzero_bins] = sum_acceleration[nonzero_bins] / counts[nonzero_bins]
-        
-        fx.append(frequency)
-        dx.append(density)
-        xs.append(visits)
-        vx.append(avg_velocity)
-        ax.append(avg_acceleration)
-    
-    fx = np.array(fx)
-    dx = np.array(dx)
-    xs = np.array(xs)
-    vx = np.array(vx)
-    ax = np.array(ax)
-
-    xs = np.mean(xs, axis=0)
-    dx = np.mean(dx, axis=0)
-    fx = np.mean(fx, axis=0)
-    vx = np.mean(vx, axis=0)
-    ax = np.mean(ax, axis=0)
-
-    R_fd, pval_fd = stats.pearsonr(fx, dx)
-    R_vd, pval_vd = stats.pearsonr(vx, dx)
-    R_ad, pval_ad = stats.pearsonr(ax, dx)
-    return xs, fx, dx, vx, ax, R_fd, pval_fd, R_vd, pval_vd, R_ad, pval_ad
-
-
-def get_1D_freq_density_corr(allcoords, logparams, trial, gap=25, bins=15):
-    bins = np.linspace(-0.8,0.8,bins)
-    fx = []
-    dx = []
-    xs = []
-
-    for g in range(gap):
-        coord = allcoords[trial-g-1]
-        #x = np.linspace(-1.0,1.0,bins+1)
-        #coord = np.concatenate([coord[:,0], x],axis=0)
-        frequency,x = np.histogram(coord, bins=bins)
-        visits = x[:-1] + (x[1] - x[0])/2
-
-        param = logparams[trial-g-1]
-        pcacts = predict_batch_placecell(param, visits)
-        density = np.sum(pcacts,axis=1)
-    
-        fx.append(frequency)
-        dx.append(density)
-        xs.append(visits)
-    
-    fx = np.array(fx)
-    dx = np.array(dx)
-    xs = np.array(xs)
-
-    xs = np.mean(xs,axis=0)
-    dx = np.mean(dx,axis=0)
-    fx = np.mean(fx,axis=0)
-    R,pval = stats.pearsonr(fx, dx)
-    return xs, fx, dx, R, pval
 
 def plot_fxdx_trials(allcoords, logparams, trials,gap, ax=None):
     if ax is None:
@@ -273,132 +240,20 @@ def plot_fx_dx(allcoords, logparams, trial, title,gap,ax=None):
     if ax is None:
         f,ax = plt.subplots()
     
-    visits, frequency, density, R, pval = get_1D_freq_density_corr(allcoords, logparams, trial, gap=gap)
+    visits, frequency, density, R, pval = get_2D_freq_density_corr(allcoords, logparams, trial, gap=gap)
     ax.scatter(frequency, density)
     slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(frequency).reshape(-1), np.array(density).reshape(-1))
     regression_line = slope * np.array(frequency).reshape(-1) + intercept
     ax.plot(np.array(frequency).reshape(-1), regression_line, color='red', label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}')
     ax.legend(frameon=False, fontsize=6)
     ax.set_title(title)
-    ax.set_xlabel('Frequency $f(x)$')
-    ax.set_ylabel('Density $d(x)$')
-
-def plot_freq_density_corr(visits, frequency, density, title):
-    plt.figure(figsize=(6, 2))
-    plt.suptitle(title)
-    plt.subplot(121)
-    plt.plot(visits, (frequency - np.min(frequency)) / (np.max(frequency) - np.min(frequency)), label='Frequency')
-    plt.plot(visits, (density - np.min(density)) / (np.max(density) - np.min(density)), label='Density')
-    plt.xlabel('Location (x)')
-    plt.ylabel('Norm value')
-    plt.axvline(-0.75, color='g', linestyle='--', label='Start')
-    plt.axvline(0.5, color='r', linestyle='--', label='Goal')
-    plt.legend(frameon=False, fontsize=6)
-
-    plt.subplot(122)
-    plt.scatter(frequency, density)
-    slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(frequency).reshape(-1), np.array(density).reshape(-1))
-    regression_line = slope * np.array(frequency).reshape(-1) + intercept
-    plt.plot(np.array(frequency).reshape(-1), regression_line, color='red', label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}')
-    plt.legend(frameon=False, fontsize=6)
-    plt.title('Correlation')
-    plt.xlabel('Frequency f(x)')
-    plt.ylabel('Density d(x)')
-    plt.tight_layout()
+    ax.set_xlabel('$f(x)$')
+    ax.set_ylabel('$d(x)$')
 
 
 def flatten(xss):
     return np.array([x for xs in xss for x in xs],dtype=np.float32)
 
-def random_zach_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
-    pc_cent =  np.linspace(-envsize,envsize,npc) 
-    pc_sigma = np.random.gamma(1, sigma/1,size=npc)
-    pc_constant = np.random.uniform(0, alpha,size=npc)
-    #pc_constant /= np.max(pc_constant)*alpha
-    
-    return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
-    1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
-
-def random_gamma_pc_weights(npc, nact,seed,sigma=0.1, alpha=1,envsize=1):
-    pc_cent =  np.linspace(-envsize,envsize,npc) 
-    pc_sigma = np.ones(npc)*sigma
-    np.random.seed(seed)
-    pc_constant = np.random.gamma(1, 0.1/1,size=npc)
-    #pc_constant /= np.max(pc_constant)*alpha
-    
-    return [np.array(pc_cent), np.array(pc_sigma), np.array(pc_constant), 
-    1e-5 * np.random.normal(size=(npc,nact)), 1e-5 * np.random.normal(size=(npc,1))]
-
-
-
-def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rsz=0.025):
-    f, axs = plt.subplots(7,3,figsize=(12,21))
-    total_trials = len(latencys)
-    gap = 25
-
-    #latency 
-    score = plot_latency(latencys, ax=axs[0,0])
-
-    plot_pc(logparams, 0,ax=axs[0,1], title='Before Learning', goalsize=rsz)
-
-    plot_pc(logparams, total_trials,ax=axs[0,2], title='After Learning', goalsize=rsz)
-
-
-    plot_value(logparams, total_trials, ax=axs[3,0], goalsize=rsz)
-
-
-    plot_velocity(logparams,  total_trials,ax=axs[1,0], goalsize=rsz)
-
-
-
-    ## high d at reward
-    dx = plot_density(logparams,  total_trials, ax=axs[1,1], goalsize=rsz)
-
-    fx = plot_frequency(allcoords,  total_trials, ax=axs[1,2], gap=gap, goalsize=rsz)
-
-    plot_fxdx_trials(allcoords, logparams, np.linspace(gap, total_trials,dtype=int, num=21), ax=axs[2,2], gap=gap)
-
-    # change in field area
-    plot_field_area(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,1])
-
-    # change in field location
-    plot_field_center(logparams, np.linspace(0, total_trials, num=21, dtype=int), ax=axs[3,2])
-
-    ### done till here
-
-    ## drift
-    trials, pv_corr,rep_corr, startxcor, endxcor = get_pvcorr(logparams, stable_perf, total_trials, num=101)
-
-    plot_rep_sim(startxcor, stable_perf, ax=axs[4,0])
-
-    plot_rep_sim(endxcor, total_trials, ax=axs[4,1])
-    
-    drift = (np.std(pv_corr))/(np.std(np.array(latencys)[np.linspace(stable_perf, total_trials-1, num=1001, dtype=int)]))
-
-    plot_pv_rep_corr(trials, pv_corr, rep_corr,title=f"D={drift:.3f}",ax=axs[4,2])
-
-    param_delta = get_param_changes(logparams, total_trials)
-    plot_param_variance(param_delta, total_trials, stable_perf,axs=axs[5])
-
-    plot_l1norm(param_delta[2], ax=axs[5,2].twinx(), stable_perf=stable_perf)
-
-    # plot_policy(logparams,ax=axs[6,0])
-
-    # plot_reward_coding(logparams,[0.75,0.0],total_trials//2-1, ax=axs[6,0])
-
-    # dlambda = np.mean(np.std(param_delta[0][stable_perf:],axis=0))
-    # dalpha= np.mean(np.std(param_delta[2][stable_perf:],axis=0))
-
-    # plot_active_frac(logparams, total_trials, num=total_trials//1000, threshold=0.1,ax=axs[6,2])
-
-    # for trial in np.linspace(0,total_trials, num=3, dtype=int):
-    #     axs[6,1].hist(logparams[trial][2],alpha=0.25, label=f'T={trial+1}')
-
-    # plot_amplitude_drift(logparams, total_trials, stable_perf, ax=axs[6,1])
-
-    f.text(0.001,0.001, exptname, fontsize=5)
-    f.tight_layout()
-    return f, score, drift
 
 def plot_policy(logparams,ax=None):
     if ax is None:
@@ -430,30 +285,58 @@ def get_param_changes(logparams, total_trials, stable_perf=0):
     lambdas = []
     sigmas = []
     alphas = []
+    values = []
+    policies = []
     episodes = np.arange(stable_perf, total_trials)
     for e in episodes:
         lambdas.append(logparams[e][0])
         sigmas.append(logparams[e][1])
         alphas.append(logparams[e][2])
+        values.append(logparams[e][4])
+        policies.append(logparams[e][3])
     lambdas = np.array(lambdas)
     sigmas = np.array(sigmas)
     alphas = np.array(alphas)
-    return [lambdas, sigmas, alphas]
+    policies = np.array(policies)
+    values = np.array(values)
+    return [lambdas, sigmas, alphas, policies, values]
 
-def plot_param_variance(param_change, total_trials, stable_perf,num=10,axs=None):
+def get_param_variance(param_change):
+    [lambdas, sigmas, alphas] = param_change
+    variance = []
+    for i, param in enumerate([lambdas, sigmas, alphas]):
+        if i == 0:
+            delta_lambdas = np.linalg.norm(param,ord=2,axis=2)
+            variances = delta_lambdas - delta_lambdas[0]
+        elif i == 1:
+            delta_sigmas = np.sum(np.diagonal(param,axis1=-2, axis2=-1),axis=-1)
+            variances = delta_sigmas - delta_sigmas[0]
+        elif i == 2:
+            variances = param - param[0]
+        variance.append(variances)
+    return variance
+
+def plot_param_variance(param_change, total_trials,num=10,axs=None):
     if axs is None:
         f,axs = plt.subplots(nrows=1, ncols=3)
     [lambdas, sigmas, alphas] = param_change
-    # Assuming `lambdas` is your T x N matrix
-    variances = np.var(alphas[stable_perf:], axis=0)
-    # Get indices of the top 10 variances
-    top_indices = np.argsort(variances)[-num:][::-1]
     episodes = np.arange(0, total_trials)
 
     labels = [r'$\lambda$', r'$\sigma$',r'$\alpha$']
     for i, param in enumerate([lambdas, sigmas, alphas]):
+        if i == 0:
+            delta_lambdas = np.linalg.norm(param,ord=2,axis=2)
+            variances = delta_lambdas - delta_lambdas[0]
+        elif i == 1:
+            delta_sigmas = np.sum(np.diagonal(param,axis1=-2, axis2=-1),axis=-1)
+            variances = delta_sigmas - delta_sigmas[0]
+        elif i == 2:
+            variances = param - param[0]
+        print(variances.shape)
+        top_indices = np.argsort(np.std(variances,axis=0))[-num:][::-1]
         for n in top_indices:
-            axs[i].plot(episodes[stable_perf:], param[stable_perf:,n])
+            axs[i].plot(episodes, variances[:,n])
+
         axs[i].set_xlabel('Trial')
         axs[i].set_ylabel(labels[i])
 
@@ -497,9 +380,8 @@ def plot_amplitude_drift(logparams, total_trials, stable_perf, ax=None):
         f,ax = plt.subplots()
     param_delta = get_param_changes(logparams, total_trials, stable_perf)
     mean_amplitude = np.mean(param_delta[2]**2,axis=0)
-    # delta_lambda = np.std(param_delta[0],axis=0)
-    # delta_alpha = np.std(param_delta[2],axis=0)
-    deltas = np.sum(np.std(np.array(param_delta),axis=1),axis=0)
+    param_var = get_param_variance(param_delta)
+    deltas = np.sum(np.std(np.array(param_var),axis=1),axis=0)
     ax.scatter(mean_amplitude, deltas)
 
     slope, intercept, r_value, p_value, std_err = stats.linregress(np.array(mean_amplitude).reshape(-1), np.array(deltas).reshape(-1))
@@ -507,15 +389,15 @@ def plot_amplitude_drift(logparams, total_trials, stable_perf, ax=None):
     ax.plot(np.array(mean_amplitude).reshape(-1), regression_line, color='red', label=f'R:{np.round(r_value, 3)}, P:{np.round(p_value, 3)}')
     ax.legend(frameon=False)
     ax.set_xlabel('Mean Amplitude')
-    ax.set_ylabel('$\sum var(\theta)$')
+    ax.set_ylabel('$\sum var(\\theta)$')
 
 def plot_rep_sim(xcor,trial, ax=None):
     if ax is None:
         f,ax = plt.subplots()
-    im = ax.imshow(xcor)
+    im = ax.imshow(xcor,origin='lower')
     plt.colorbar(im)
-    ax.set_xlabel('Location (x)')
-    ax.set_ylabel('Location (x)')
+    ax.set_xlabel('$x_1 x_2$')
+    ax.set_ylabel('$x_1 x_2$')
     idx = np.array([0,500,1000])
     ax.set_xticks(np.arange(1001)[idx], np.linspace(-1,1,1001)[idx])
     ax.set_yticks(np.arange(1001)[idx], np.linspace(-1,1,1001)[idx])
@@ -539,6 +421,7 @@ def plot_value(logparams, trial, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], 
     ax.set_ylabel('$x_2$')
     ax.set_xticks([],[])
     ax.set_yticks([],[])
+    ax.set_title('Value')
 
 
 
@@ -566,7 +449,10 @@ def plot_field_center(logparams, trials,ax=None):
     for trial in trials:
         lambdas.append(logparams[trial][0])
     lambdas = np.array(lambdas)
-    norm_lambdas = np.linalg.norm(lambdas-lambdas[0],ord=2, axis=2)
+
+    delta_lambdas = np.linalg.norm(lambdas,ord=2,axis=2)
+    norm_lambdas = delta_lambdas - delta_lambdas[0]
+
     ax.errorbar(trials, np.mean(norm_lambdas,axis=1), np.std(norm_lambdas,axis=1)/np.sqrt(len(logparams[0][0])), marker='o')
     ax.set_ylabel('Centered Field Center')
     ax.set_xlabel('Trial')
@@ -601,6 +487,7 @@ def plot_velocity(logparams, trial, goalcoord=[0.5,0.5], startcoord=[-0.7,-0.75]
     ax.set_ylabel('$x_2$')
     ax.set_xticks([],[])
     ax.set_yticks([],[])
+    ax.set_title('Policy')
     
 
 def plot_pc(logparams, trial,pi=None, title='', ax=None, goalcoord=[0.5,0.5], startcoord=[-0.75,-0.75], goalsize=0.05, envsize=1, ):
@@ -641,6 +528,8 @@ def plot_pc(logparams, trial,pi=None, title='', ax=None, goalcoord=[0.5,0.5], st
     if ax is None:
         f.suptitle(title)
         f.tight_layout()
+    else:
+        ax.set_title(pcidx)
 
 def plot_reward_coding(logparams,goalcoords,stable_perf, ax=None):
     if ax is None:
@@ -774,9 +663,9 @@ def get_2D_freq_density_corr(allcoords, logparams, end, gap=20, bins=10):
 
     param = logparams[end-1]
     pcacts = predict_batch_placecell(param, visits)
-    dxs = np.sum(pcacts,axis=1)
+    dxs = np.sum(pcacts,axis=1).reshape(-1)
 
-    R,pval = stats.pearsonr(freq.reshape(-1), dxs.reshape(-1))
+    R,pval = stats.pearsonr(freq, dxs)
     return visits, freq, dxs, R, pval
 
 def get_pvcorr(params, start, end, num):
