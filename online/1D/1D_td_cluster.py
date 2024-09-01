@@ -81,12 +81,12 @@ beta = args.beta
 
 
 plot_figs= False
-savecsv = True
-savevar = False
+savecsv = False
+savevar = True
 savefig = False
 savegif = False
 
-exptname = f'{bptype}_1D_td_online_{balpha}ba_{noise}ns_{piname}p_{npc}n_{actor_eta}plr_{critic_eta}clr_{pc_eta}llr_{constant_eta}alr_{sigma_eta}slr_{pcinit}_{alpha}a_{sigma}s_{nact}a_{seed}s_{train_episodes}e_{max_reward}rmax_{goalsize}rsz'
+exptname = f'lat_{bptype}_1D_td_online_{balpha}ba_{noise}ns_{piname}p_{npc}n_{actor_eta}plr_{critic_eta}clr_{pc_eta}llr_{constant_eta}alr_{sigma_eta}slr_{pcinit}_{alpha}a_{sigma}s_{nact}a_{seed}s_{train_episodes}e_{max_reward}rmax_{goalsize}rsz'
 figdir = './fig/'
 datadir = './data/'
 
@@ -167,7 +167,7 @@ for goalcoord in goalcoords:
 
 #%%
 
-trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,3, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
+# trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,3, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
 
 # stable_perf = train_episodes//4
 # var_pv,var_rc, var_gr, var_lat = compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001)
@@ -190,6 +190,9 @@ if savevar:
 
     elif args.analysis == 'drift':
         saveload(datadir+exptname, [var_pv,var_rc, var_gr, var_lat], 'save')
+    
+    elif args.analysis == 'perf':
+        saveload(datadir+exptname, [latencys, cum_rewards], 'save')
 # %%
 if savegif:
     plot_gif(logparams, gif_name=f'{noise}ns_{piname}p_{balpha}ba_{pcinit}pc.gif', num_frames=250, duration=10)
