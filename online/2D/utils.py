@@ -60,7 +60,7 @@ def plot_analysis(logparams,latencys, allcoords, stable_perf, exptname=None , rs
     plot_pv_rep_corr(trials, pv_corr, rep_corr,title=f"D={drift:.3f}",ax=axs[5,2])
 
     param_delta = get_param_changes(logparams, total_trials)
-    plot_param_variance(param_delta, total_trials, stable_perf,axs=axs[4], num=5)
+    plot_param_variance(param_delta, total_trials,axs=axs[4], num=5)
 
     plot_l1norm(param_delta[2], ax=axs[6,2], stable_perf=0)
 
@@ -302,7 +302,7 @@ def get_param_changes(logparams, total_trials, stable_perf=0):
     return [lambdas, sigmas, alphas, policies, values]
 
 def get_param_variance(param_change):
-    [lambdas, sigmas, alphas] = param_change
+    [lambdas, sigmas, alphas, policies, values] = param_change
     variance = []
     for i, param in enumerate([lambdas, sigmas, alphas]):
         if i == 0:
@@ -319,7 +319,7 @@ def get_param_variance(param_change):
 def plot_param_variance(param_change, total_trials,num=10,axs=None):
     if axs is None:
         f,axs = plt.subplots(nrows=1, ncols=3)
-    [lambdas, sigmas, alphas] = param_change
+    [lambdas, sigmas, alphas, policies, values] = param_change
     episodes = np.arange(0, total_trials)
 
     labels = [r'$\lambda$', r'$\sigma$',r'$\alpha$']

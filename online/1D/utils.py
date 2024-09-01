@@ -176,15 +176,16 @@ def fit_model(x, y, func_type='linear', initial_guess=None):
         raise ValueError("Unsupported function type. Choose from 'linear', 'exp', 'sigmoid', or 'power'.")
 
     popt, _ = curve_fit(func, x, y, p0=initial_guess, maxfev=10000)
-    return popt
+    return popt, func
 
 
-def plot_model_fit(x, y, func_type):
-    plt.scatter(x, y)
+def plot_model_fit(x, y, func_type,ax=None):
+    if ax is None:
+        f,ax = plt.subplots()
+    ax.scatter(x, y)
     popt, func = fit_model(x, y, func_type)
-    plt.plot(x, func(x, *popt), label=f'Fitted: {func_type}\nParams: {np.round(popt, 3)}', color='red')
-    plt.legend(frameon=False, fontsize=6)
-    plt.show()
+    ax.plot(x, func(x, *popt), label=f'Fitted: {func_type}\nParams: {np.round(popt, 3)}', color='red')
+    ax.legend(frameon=False, fontsize=6)
 
 def get_1D_fva_density_corr(allcoords, logparams, end, gap=25, bins=15, delta_t=1, end2=None):
     bins = np.linspace(-1, 1, bins)
@@ -442,21 +443,32 @@ def plot_active_frac(logparams, train_episodes,num=100, threshold=1.0,ax=None):
     ax.set_xlabel('Trial')
     ax.set_ylabel(f'Active Fraction > {threshold}')
 
+def normalize_values(x):
+    maxval = np.max(x)
+    minval = np.min(x)
+    return (x-minval)/(maxval-minval)
 
 def get_param_changes(logparams, total_trials, stable_perf=0):
 
     lambdas = []
     sigmas = []
     alphas = []
+    values = []
+    policies = []
     episodes = np.arange(stable_perf, total_trials)
     for e in episodes:
         lambdas.append(logparams[e][0])
         sigmas.append(logparams[e][1])
         alphas.append(logparams[e][2])
+        values.append(logparams[e][4])
+        policies.append(logparams[e][3])
     lambdas = np.array(lambdas)
     sigmas = np.array(sigmas)
     alphas = np.array(alphas)
-    return [lambdas, sigmas, alphas]
+    policies = np.array(policies)
+    values = np.array(values)
+    return [lambdas, sigmas, alphas, policies, values]
+
 
 def plot_param_variance(param_change, total_trials, stable_perf,num=10,axs=None):
     if axs is None:
@@ -588,6 +600,8 @@ def plot_field_center(logparams, trials,ax=None):
     ax.errorbar(trials, np.mean(norm_lambdas,axis=1), np.std(norm_lambdas,axis=1)/np.sqrt(len(logparams[0][0])), marker='o')
     ax.set_ylabel('Centered Field Center')
     ax.set_xlabel('Trial')
+
+    
     return norm_lambdas
 
 

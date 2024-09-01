@@ -71,3 +71,28 @@ if analysis == 'npc':
 
 
     saveload(f"./comp_data/npc_compile_{episodes}e", [np.mean(latencys,axis=4),np.mean(cumrs,axis=4),np.mean(dxs,axis=4),np.mean(delta_dxrs,axis=4)], 'save')
+
+if analysis == 'perf':
+
+    rmaxs = [5]
+    npcs = [4,8,16,32,64,128,256,512, 1024]
+    rszs = [0.05]
+    sigmas = [0.05]
+    seeds = 10
+    episodes = 50000
+
+    latencys = np.zeros([len(npcs), seeds, episodes])
+    cumrs = np.zeros_like(latencys)
+
+    for n,npc in enumerate(npcs):
+        for s in range(seeds):
+
+            exptname = f"lat_both_1D_td_online_0.0ba_0.0ns_0p_{npc}n_0.01plr_0.01clr_0.0001llr_0.0001alr_0.0001slr_uni_0.5a_{sigma}s_2a_{s}s_{episodes}e_{rmax}rmax_{rsz}rsz"
+            print(exptname)
+            try:
+                [latencys[n,s], cumrs[n, s]] = saveload(datadir+exptname, 1, 'load')
+            except FileNotFoundError: 
+                print("Not Found!", exptname)
+
+
+    saveload(f"./comp_data/lat_npc_compile_{episodes}e", [np.mean(latencys,axis=1),np.mean(cumrs,axis=1)], 'save')
