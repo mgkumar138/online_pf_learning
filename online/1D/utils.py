@@ -675,7 +675,7 @@ def plot_com(logparams,goalcoords,stable_perf, ax=None):
     ax.set_xlabel('Before')
     ax.set_ylabel('After')
 
-def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.025, envsize=1, color='k'):
+def plot_density(logparams, trials, ax=None, goalcoord=[0.5], startcoord=[-0.75], goalsize=0.05, envsize=1, color=None):
     if ax is None:
         f,ax = plt.subplots()
     xs = np.linspace(-1,1,1001)
