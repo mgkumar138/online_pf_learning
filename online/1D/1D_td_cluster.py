@@ -81,12 +81,12 @@ beta = args.beta
 
 
 plot_figs= False
-savecsv = False
-savevar = True
+savecsv = True
+savevar = False
 savefig = False
 savegif = False
 
-exptname = f'lat_{bptype}_1D_td_online_{balpha}ba_{noise}ns_{piname}p_{npc}n_{actor_eta}plr_{critic_eta}clr_{pc_eta}llr_{constant_eta}alr_{sigma_eta}slr_{pcinit}_{alpha}a_{sigma}s_{nact}a_{seed}s_{train_episodes}e_{max_reward}rmax_{goalsize}rsz'
+exptname = f'{bptype}_1D_td_online_{balpha}ba_{noise}ns_{piname}p_{npc}n_{actor_eta}plr_{critic_eta}clr_{pc_eta}llr_{constant_eta}alr_{sigma_eta}slr_{pcinit}_{alpha}a_{sigma}s_{nact}a_{seed}s_{train_episodes}e_{max_reward}rmax_{goalsize}rsz'
 figdir = './fig/'
 datadir = './data/'
 
@@ -161,7 +161,8 @@ for goalcoord in goalcoords:
         losses.append(tds)
         cum_rewards.append(np.sum(discount_rewards))
 
-        print(f'Goal {goalcoord}, Trial {episode+1}, G {np.sum(discount_rewards):.3f}, t {latency}, L {tds:.3f}, a {np.linalg.norm(params[2],ord=1):.3f}')
+        if episode % 10000 == 0:
+            print(f'Goal {goalcoord}, Trial {episode+1}, G {np.sum(discount_rewards):.3f}, t {latency}, L {tds:.3f}, a {np.linalg.norm(params[2],ord=1):.3f}')
 
 
 
@@ -169,14 +170,14 @@ for goalcoord in goalcoords:
 
 # trials, dx, delta_dxr = compute_dxr(logparams, trials=np.linspace(0,train_episodes,3, dtype=int), rcent=args.goalcoords[0], rsz=args.rsz)
 
-# stable_perf = train_episodes//4
-# var_pv,var_rc, var_gr, var_lat = compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001)
-
 if savecsv:
     if args.analysis == 'dx':
-        store_csv('./csvs/dx_'+args.csvname+'.csv', args, ['latencys','cumr','dx', 'delta_dxr'], [latencys[-1], cum_rewards[-1], dx, delta_dxr])
+        trials, dx, delta_dxr = compute_dxr(logparams, trials=[train_episodes], rcent=args.goalcoords[0], rsz=args.rsz)
+        store_csv('./csvs/dx_'+args.csvname+'.csv', args, ['latencys','cumr', 'delta_dxr'], [latencys[-1], cum_rewards[-1], delta_dxr])
 
     elif args.analysis == 'drift':
+        stable_perf = 25000
+        var_pv,var_rc, var_gr, var_lat = compute_drift(logparams,latencys, cum_rewards, stable_perf, train_episodes, num=1001)
         store_csv('./csvs/drift_'+args.csvname+'.csv', args, ['var_pv', 'var_rc', 'var_gr', 'var_lat'], [var_pv,var_rc, var_gr, var_lat])
         
 if savefig and seed == 0:
@@ -193,6 +194,9 @@ if savevar:
     
     elif args.analysis == 'perf':
         saveload(datadir+exptname, [latencys, cum_rewards], 'save')
+        
+    elif args.analysis == 'full':
+        saveload(datadir+exptname, [logparams, latencys,cum_rewards, allcoords], 'save')
 # %%
 if savegif:
     plot_gif(logparams, gif_name=f'{noise}ns_{piname}p_{balpha}ba_{pcinit}pc.gif', num_frames=250, duration=10)

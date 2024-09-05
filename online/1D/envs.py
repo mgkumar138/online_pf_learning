@@ -104,12 +104,10 @@ class OneDimNav:
 
         elif self.reward_type == 'gauss':
             self.reward = self.reward_func(self.state, threshold=0)
-            # self.reward *= reward_mod
-            if self.reward >1e-2:
-                self.total_reward +=1
+            self.total_reward += self.reward
         
 
-        if self.total_reward == self.max_reward:
+        if self.total_reward >= self.max_reward:
             self.done = True
         
         if self.t == self.tmax:

@@ -74,6 +74,7 @@ if analysis == 'npc':
 
 if analysis == 'perf':
 
+    lrs = [0.0,0.0001]
     rmaxs = [5]
     npcs = [4,8,16,32,64,128,256,512, 1024]
     rszs = [0.05]
@@ -81,18 +82,23 @@ if analysis == 'perf':
     seeds = 10
     episodes = 50000
 
-    latencys = np.zeros([len(npcs), seeds, episodes])
+    latencys = np.zeros([len(npcs),len(lrs),len(lrs), len(lrs), seeds, episodes])
     cumrs = np.zeros_like(latencys)
 
-    for n,npc in enumerate(npcs):
-        for s in range(seeds):
+    for l, llr in enumerate(lrs):
+        for s, slr in enumerate(lrs):
+            for a,alr in enumerate(lrs):
+                for n,npc in enumerate(npcs):
+                    for seed in range(seeds):
 
-            exptname = f"lat_both_1D_td_online_0.0ba_0.0ns_0p_{npc}n_0.01plr_0.01clr_0.0001llr_0.0001alr_0.0001slr_uni_0.5a_{sigma}s_2a_{s}s_{episodes}e_{rmax}rmax_{rsz}rsz"
-            print(exptname)
-            try:
-                [latencys[n,s], cumrs[n, s]] = saveload(datadir+exptname, 1, 'load')
-            except FileNotFoundError: 
-                print("Not Found!", exptname)
+                        exptname = f"./data/lat_both_1D_td_online_0.0ba_0.0ns_0p_{npc}n_0.01plr_0.01clr_{llr}llr_{alr}alr_{slr}slr_uni_0.5a_0.05s_2a_{s}s_50000e_5rmax_0.05rsz"
+                        # print(exptname)
+                        try:
+                            [latencys[n,l,s,a,seed], cumrs[n,l,s,a,seed]] = saveload(exptname, 1, 'load')
+                        except FileNotFoundError: 
+                            print("Not Found!", exptname)
+                            latencys[n,l,s,a,seed], cumrs[n,l,s,a,seed] = np.nan, np.nan
 
 
-    saveload(f"./comp_data/lat_npc_compile_{episodes}e", [np.mean(latencys,axis=1),np.mean(cumrs,axis=1)], 'save')
+
+    saveload(f"./comp_data/lat_compile_{episodes}e", [np.mean(latencys,axis=4),np.mean(cumrs,axis=4)], 'save')
